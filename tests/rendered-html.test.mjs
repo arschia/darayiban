@@ -37,7 +37,10 @@ test("renders production metadata", async () => {
 
 test("includes Google as an authentication option", async () => {
   const source = await readFile(new URL("../app/auth-screen.tsx", import.meta.url), "utf8");
+  const siteUrlSource = await readFile(new URL("../lib/site-url.ts", import.meta.url), "utf8");
   assert.match(source, /ادامه با حساب گوگل/);
   assert.match(source, /provider:\s*"google"/);
-  assert.match(source, /redirectTo:\s*window\.location\.origin/);
+  assert.match(source, /redirectTo:\s*getAuthRedirectUrl\(\)/);
+  assert.match(siteUrlSource, /https:\/\/selfmali\.vercel\.app/);
+  assert.doesNotMatch(siteUrlSource, /darayiban\.su-bifyt-ub\.chatgpt\.site/);
 });

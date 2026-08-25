@@ -14,6 +14,7 @@
 </p>
 
 <p align="center">
+  <a href="https://selfmali.vercel.app">نسخه زنده</a> ·
   <a href="#راه‌اندازی-محلی">راه‌اندازی</a> ·
   <a href="./docs/ARCHITECTURE.md">معماری</a> ·
   <a href="#اتصال-iphone-shortcuts">اتوماسیون آیفون</a> ·

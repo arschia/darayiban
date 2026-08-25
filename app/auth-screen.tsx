@@ -3,6 +3,7 @@
 import { ArrowLeft, CheckCircle2, Eye, EyeOff, LockKeyhole, Mail, RefreshCw, ShieldCheck, Sparkles } from "lucide-react";
 import { FormEvent, useState } from "react";
 import { supabase } from "../lib/supabase";
+import { getAuthRedirectUrl } from "../lib/site-url";
 
 function BrandMark() {
   return <div className="brand-mark auth-brand-mark" aria-hidden="true"><span /><span /><span /></div>;
@@ -38,7 +39,7 @@ export function AuthScreen() {
     const { error } = await supabase.auth.signInWithOAuth({
       provider: "google",
       options: {
-        redirectTo: window.location.origin,
+        redirectTo: getAuthRedirectUrl(),
       },
     });
 
@@ -59,7 +60,7 @@ export function AuthScreen() {
         password,
         options: {
           data: { full_name: fullName.trim() },
-          emailRedirectTo: window.location.origin,
+          emailRedirectTo: getAuthRedirectUrl(),
         },
       });
       if (error) {
@@ -86,7 +87,7 @@ export function AuthScreen() {
     const { error } = await supabase.auth.resend({
       type: "signup",
       email: pendingEmail,
-      options: { emailRedirectTo: window.location.origin },
+      options: { emailRedirectTo: getAuthRedirectUrl() },
     });
     setMessage(error
       ? { type: "error", text: "ارسال دوباره انجام نشد. یک دقیقه صبر کن و دوباره امتحان کن." }

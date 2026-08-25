@@ -1,18 +1,11 @@
 import type { Metadata, Viewport } from "next";
 import "@fontsource-variable/vazirmatn";
+import { getSiteUrl } from "../lib/site-url";
 import { PwaRegister } from "./pwa-register";
 import "./globals.css";
 
-function getSiteUrl() {
-  const configuredUrl =
-    process.env.NEXT_PUBLIC_SITE_URL ??
-    process.env.VERCEL_PROJECT_PRODUCTION_URL ??
-    "https://darayiban.su-bifyt-ub.chatgpt.site";
-  return new URL(configuredUrl.startsWith("http") ? configuredUrl : `https://${configuredUrl}`);
-}
-
 export const metadata: Metadata = {
-  metadataBase: getSiteUrl(),
+  metadataBase: new URL(getSiteUrl()),
   title: "دارایی‌بان | دستیار مالی شخصی",
   description: "مدیریت فارسی تراکنش‌ها، بودجه، بدهی‌ها و دارایی‌ها در یک اپ امن و ساده.",
   applicationName: "دارایی‌بان",
