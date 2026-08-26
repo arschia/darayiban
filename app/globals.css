@@ -3026,6 +3026,31 @@ button {
 .budget-foot { color: var(--muted); font-size: 8px; }
 .budget-row-head b { color: var(--primary); font-size: 11px; }
 
+.budget-row-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.budget-row-actions button {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 6px 8px;
+  border: 1px solid #f1c5c3;
+  border-radius: 8px;
+  background: var(--coral-soft);
+  color: var(--coral);
+  font: inherit;
+  font-size: 8px;
+  font-weight: 750;
+  cursor: pointer;
+}
+
+.budget-row-actions button:hover {
+  filter: brightness(.97);
+}
+
 .budget-track {
   height: 7px;
   overflow: hidden;

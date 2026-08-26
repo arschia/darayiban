@@ -431,12 +431,12 @@ function AssetsView({ assets, targets, currency, openModal }: { assets: Asset[];
   );
 }
 
-function BudgetView({ budgets, targets, transactions, currency, openModal }: { budgets: Budget[]; targets: BudgetTarget[]; transactions: Transaction[]; currency: string; openModal: () => void }) {
+function BudgetView({ budgets, targets, transactions, currency, openModal, onDelete }: { budgets: Budget[]; targets: BudgetTarget[]; transactions: Transaction[]; currency: string; openModal: () => void; onDelete: (budget: Budget) => void }) {
   return (
     <section className="data-view">
       <ViewHeader kicker="برنامه مالی" title="بودجه‌بندی" text="برای هزینه‌های ماه و ترکیب دارایی‌ها هدف مشخص کن." action={<button className="primary-button" onClick={openModal} type="button"><Plus size={19} /> بودجه جدید</button>} />
       <div className="budget-layout">
-        <article className="panel budget-list-panel"><div className="column-head"><h2>بودجه‌ها</h2><span>{budgets.length.toLocaleString("fa-IR")} بودجه</span></div>{budgets.length ? <div className="budget-list">{budgets.map((item) => { const matched = budgetTransactions(item, transactions); const spent = matched.reduce((sum, transaction) => sum + numberValue(transaction.amount), 0); const used = Math.min(100, Math.round((spent / Math.max(1, numberValue(item.amount))) * 100)); const inferredTag = !item.tag ? Array.from(new Set(transactions.flatMap((transaction) => transaction.tags ?? []))).find((tag) => item.name.toLocaleLowerCase("fa-IR").includes(tag.toLocaleLowerCase("fa-IR"))) : null; const scope = item.tag || inferredTag; return <div className="budget-row" key={item.id}><div className="budget-row-head"><div><strong>{item.name}</strong><span>{shortDate(item.period_start)} تا {shortDate(item.period_end)}</span>{scope ? <em><Tag size={11} /> فقط #{scope}</em> : <em>همه هزینه‌های این بازه</em>}</div><b>{used.toLocaleString("fa-IR")}٪</b></div><div className="budget-track"><i style={{ width: `${used}%` }} /></div><div className="budget-foot"><span>{money(spent)} {currency} مصرف</span><span>{money(Math.max(0, numberValue(item.amount) - spent))} {currency} باقی‌مانده</span></div></div>; })}</div> : <EmptyState icon={<Target size={23} />} title="هنوز بودجه‌ای تعریف نکردی" text="یک سقف هزینه ماهانه بساز و روند مصرفش را ببین." action={<button className="primary-button small" onClick={openModal} type="button"><Plus size={17} /> ساخت بودجه</button>} />}</article>
+        <article className="panel budget-list-panel"><div className="column-head"><h2>بودجه‌ها</h2><span>{budgets.length.toLocaleString("fa-IR")} بودجه</span></div>{budgets.length ? <div className="budget-list">{budgets.map((item) => { const matched = budgetTransactions(item, transactions); const spent = matched.reduce((sum, transaction) => sum + numberValue(transaction.amount), 0); const used = Math.min(100, Math.round((spent / Math.max(1, numberValue(item.amount))) * 100)); const inferredTag = !item.tag ? Array.from(new Set(transactions.flatMap((transaction) => transaction.tags ?? []))).find((tag) => item.name.toLocaleLowerCase("fa-IR").includes(tag.toLocaleLowerCase("fa-IR"))) : null; const scope = item.tag || inferredTag; return <div className="budget-row" key={item.id}><div className="budget-row-head"><div><strong>{item.name}</strong><span>{shortDate(item.period_start)} تا {shortDate(item.period_end)}</span>{scope ? <em><Tag size={11} /> فقط #{scope}</em> : <em>همه هزینه‌های این بازه</em>}</div><div className="budget-row-actions"><b>{used.toLocaleString("fa-IR")}٪</b><button type="button" onClick={() => onDelete(item)} aria-label={`حذف بودجه ${item.name}`}><Trash2 size={14} /> حذف</button></div></div><div className="budget-track"><i style={{ width: `${used}%` }} /></div><div className="budget-foot"><span>{money(spent)} {currency} مصرف</span><span>{money(Math.max(0, numberValue(item.amount) - spent))} {currency} باقی‌مانده</span></div></div>; })}</div> : <EmptyState icon={<Target size={23} />} title="هنوز بودجه‌ای تعریف نکردی" text="یک سقف هزینه ماهانه بساز و روند مصرفش را ببین." action={<button className="primary-button small" onClick={openModal} type="button"><Plus size={17} /> ساخت بودجه</button>} />}</article>
         <article className="panel targets-panel"><div className="column-head"><h2>هدف ترکیب دارایی</h2><span>مجموع {money(targets.reduce((sum, item) => sum + numberValue(item.target_percentage), 0))}٪</span></div>{targets.length ? <div className="target-list">{targets.map((item) => <div key={item.id}><span>{assetNames[item.asset_type as Asset["asset_type"]] ?? item.asset_type}</span><div><i style={{ width: `${numberValue(item.target_percentage)}%` }} /></div><strong>{money(item.target_percentage)}٪</strong></div>)}</div> : <EmptyState icon={<Coins size={23} />} title="هدفی برای سبد ثبت نشده" text="بعداً می‌توانی درصد مطلوب طلا، ارز و رمزارز را مشخص کنی." />}</article>
       </div>
       <div className="budget-tip"><Sparkles size={20} /><div><strong>پیشنهاد ساده برای شروع</strong><p>اول هزینه ثابت ماهانه و مبلغ پس‌انداز را جدا کن. بعد برای هر گروه دارایی درصد هدف بگذار؛ این بخش توصیه سرمایه‌گذاری نیست.</p></div></div>
@@ -817,6 +817,18 @@ export function FinanceApp({ session }: { session: Session }) {
     if (error) setNotice("حذف دائمی تراکنش انجام نشد."); else { setNotice("تراکنش برای همیشه حذف شد."); await loadData(true); }
   }
 
+  async function deleteBudget(budget: Budget) {
+    if (!window.confirm(`بودجه «${budget.name}» حذف شود؟`)) return;
+    setNotice(null);
+    const { error } = await supabase.from("budgets").delete().eq("id", budget.id).eq("user_id", userId);
+    if (error) {
+      setNotice("حذف بودجه انجام نشد؛ دوباره تلاش کن.");
+      return;
+    }
+    setBudgets((current) => current.filter((item) => item.id !== budget.id));
+    setNotice("بودجه حذف شد.");
+  }
+
   async function saveTransaction(event: FormEvent<HTMLFormElement>) {
     event.preventDefault(); setSaving(true); setNotice(null);
     const form = new FormData(event.currentTarget);
@@ -890,7 +902,7 @@ export function FinanceApp({ session }: { session: Session }) {
           {activeView === "calendar" && <CalendarView transactions={transactions} obligations={obligations} currency={currency} onEdit={editTransaction} onTrash={(transaction) => void moveToTrash(transaction)} />}
           {activeView === "obligations" && <ObligationsView obligations={obligations} currency={currency} openModal={() => setModal("obligation")} />}
           {activeView === "assets" && <AssetsView assets={assets} targets={targets} currency={currency} openModal={() => setModal("asset")} />}
-          {activeView === "budget" && <BudgetView budgets={budgets} targets={targets} transactions={transactions} currency={currency} openModal={() => setModal("budget")} />}
+          {activeView === "budget" && <BudgetView budgets={budgets} targets={targets} transactions={transactions} currency={currency} openModal={() => setModal("budget")} onDelete={(budget) => void deleteBudget(budget)} />}
           {activeView === "academy" && <AcademyView tokens={tokens} userId={userId} refreshTokens={refreshTokens} />}
           {activeView === "notifications" && <NotificationView preferences={notificationPreferences} deliveries={notificationDeliveries} pushEnabled={pushEnabled} permission={pushPermission} saving={saving} onEnable={enablePushNotifications} onDisable={disablePushNotifications} onSave={saveNotificationPreferences} />}
           {activeView === "install" && <InstallView />}
