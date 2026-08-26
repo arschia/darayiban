@@ -270,7 +270,7 @@ function DashboardView({
               <article className="bank-balance-card panel" key={item.id}>
                 <div className="bank-balance-top"><span><Landmark size={21} /></span><time>{dateTime(item.reported_at)}</time></div>
                 <p>موجودی بانک {item.bank_name}</p>
-                <strong>{money(item.balance)} <small>{currency}</small></strong>
+                <strong>{money(tomanValue(item.balance, item.currency))} <small>{currency}</small></strong>
                 {item.account_hint ? <em>حساب {item.account_hint}</em> : <em>حساب بانکی</em>}
               </article>
             ))}
