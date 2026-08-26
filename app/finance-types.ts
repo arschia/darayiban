@@ -7,6 +7,7 @@ export type ViewId =
   | "budget"
   | "academy"
   | "install"
+  | "notifications"
   | "trash";
 
 export type Transaction = {
@@ -79,6 +80,35 @@ export type Profile = {
   base_currency: string;
   locale: string;
   timezone: string;
+};
+
+export type BankBalance = {
+  id: string;
+  bank_name: string;
+  account_hint: string;
+  balance: number | string;
+  currency: string;
+  reported_at: string;
+  updated_at: string;
+};
+
+export type NotificationPreferences = {
+  user_id: string;
+  daily_limit: number | string | null;
+  daily_limit_enabled: boolean;
+  daily_summary_enabled: boolean;
+  daily_summary_time: string;
+  timezone: string;
+};
+
+export type NotificationDelivery = {
+  id: string;
+  kind: "daily_limit" | "daily_summary" | string;
+  title: string;
+  body: string;
+  status: "pending" | "sent" | "failed" | "skipped";
+  sent_at: string | null;
+  created_at: string;
 };
 
 export const money = (value: number | string | null | undefined) =>

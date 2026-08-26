@@ -44,11 +44,16 @@ import {
 } from "lucide-react";
 import { FormEvent, ReactNode, useCallback, useEffect, useMemo, useState } from "react";
 import { smsEndpoint, supabase } from "../lib/supabase";
+import { base64UrlToUint8Array, VAPID_PUBLIC_KEY } from "../lib/push";
+import { NotificationView } from "./notification-view";
 import {
   Asset,
   AutomationToken,
+  BankBalance,
   Budget,
   BudgetTarget,
+  NotificationDelivery,
+  NotificationPreferences,
   Obligation,
   Profile,
   Transaction,
@@ -79,6 +84,7 @@ const navItems: Array<{ id: ViewId; label: string; icon: typeof LayoutDashboard 
   { id: "assets", label: "دارایی‌ها", icon: Coins },
   { id: "budget", label: "بودجه‌بندی", icon: Target },
   { id: "academy", label: "آموزش", icon: BookOpen },
+  { id: "notifications", label: "اعلان‌ها", icon: Bell },
   { id: "install", label: "نصب برنامه", icon: Download },
   { id: "trash", label: "سطل زباله", icon: Trash2 },
 ];
@@ -166,6 +172,7 @@ function DashboardView({
   obligations,
   assets,
   budgets,
+  bankBalances,
   currency,
   openModal,
   openView,
@@ -181,6 +188,7 @@ function DashboardView({
   obligations: Obligation[];
   assets: Asset[];
   budgets: Budget[];
+  bankBalances: BankBalance[];
   currency: string;
   openModal: (kind: ModalKind) => void;
   openView: (view: ViewId) => void;
@@ -253,6 +261,22 @@ function DashboardView({
         <article className="summary-card"><div className="summary-top"><span className="icon-tile coral"><ArrowUpRight size={22} /></span><MiniTrend positive={false} text={`${monthTransactions.filter((item) => item.type === "withdrawal").length.toLocaleString("fa-IR")} برداشت`} /></div><span className="summary-label">هزینه این ماه</span><strong>{money(expense)}</strong><small>{currency}</small></article>
         <article className="summary-card budget-card"><div className="summary-top"><span className="icon-tile violet"><Target size={22} /></span><span className="pill">{budgetTotal ? `${budgetUsed.toLocaleString("fa-IR")}٪ مصرف` : "بودجه‌ای نیست"}</span></div><span className="summary-label">بودجه باقی‌مانده</span><strong>{money(budgetRemaining)}</strong><div className="progress"><span style={{ width: `${budgetUsed}%` }} /></div><small>{budgetTotal ? `از ${money(budgetTotal)} ${currency}` : "اولین بودجه را ثبت کن"}</small></article>
       </section>
+
+      {bankBalances.length ? (
+        <section className="bank-balances-section" aria-label="موجودی حساب‌های بانکی">
+          <div className="bank-balances-heading"><div><Landmark size={20} /><div><h2>موجودی حساب‌های بانکی</h2><p>آخرین مانده اعلام‌شده در پیامک هر بانک</p></div></div><span>{bankBalances.length.toLocaleString("fa-IR")} حساب</span></div>
+          <div className="bank-balances-grid">
+            {bankBalances.map((item) => (
+              <article className="bank-balance-card panel" key={item.id}>
+                <div className="bank-balance-top"><span><Landmark size={21} /></span><time>{dateTime(item.reported_at)}</time></div>
+                <p>موجودی بانک {item.bank_name}</p>
+                <strong>{money(item.balance)} <small>{currency}</small></strong>
+                {item.account_hint ? <em>حساب {item.account_hint}</em> : <em>حساب بانکی</em>}
+              </article>
+            ))}
+          </div>
+        </section>
+      ) : null}
 
       <section className="content-grid">
         <article className="panel cashflow-panel">
@@ -547,6 +571,11 @@ export function FinanceApp({ session }: { session: Session }) {
   const [budgets, setBudgets] = useState<Budget[]>([]);
   const [targets, setTargets] = useState<BudgetTarget[]>([]);
   const [tokens, setTokens] = useState<AutomationToken[]>([]);
+  const [bankBalances, setBankBalances] = useState<BankBalance[]>([]);
+  const [notificationPreferences, setNotificationPreferences] = useState<NotificationPreferences | null>(null);
+  const [notificationDeliveries, setNotificationDeliveries] = useState<NotificationDelivery[]>([]);
+  const [pushEnabled, setPushEnabled] = useState(false);
+  const [pushPermission, setPushPermission] = useState<NotificationPermission | "unsupported">("default");
   const userId = session.user.id;
   const providers = Array.isArray(session.user.app_metadata?.providers) ? session.user.app_metadata.providers as string[] : [];
   const googleOnlyAccount = providers.includes("google") && !providers.includes("email");
@@ -554,7 +583,7 @@ export function FinanceApp({ session }: { session: Session }) {
 
   const loadData = useCallback(async (quiet = false) => {
     if (!quiet) setLoading(true);
-    const [profileResult, transactionsResult, trashResult, obligationsResult, assetsResult, budgetsResult, targetsResult, tokensResult] = await Promise.all([
+    const [profileResult, transactionsResult, trashResult, obligationsResult, assetsResult, budgetsResult, targetsResult, tokensResult, balancesResult, notificationPreferencesResult, notificationDeliveriesResult] = await Promise.all([
       supabase.from("profiles").select("id,full_name,base_currency,locale,timezone").eq("id", userId).maybeSingle(),
       supabase.from("transactions").select("id,type,amount,description,from_card,to_card,transaction_time,category,tags,bank_name,source,currency,deleted_at,updated_at").eq("user_id", userId).is("deleted_at", null).order("transaction_time", { ascending: false }).limit(250),
       supabase.from("transactions").select("id,type,amount,description,from_card,to_card,transaction_time,category,tags,bank_name,source,currency,deleted_at,updated_at").eq("user_id", userId).not("deleted_at", "is", null).order("deleted_at", { ascending: false }).limit(100),
@@ -563,8 +592,11 @@ export function FinanceApp({ session }: { session: Session }) {
       supabase.from("budgets").select("id,name,amount,currency,period_start,period_end,tag,notes").eq("user_id", userId).order("period_start", { ascending: false }),
       supabase.from("budget_targets").select("id,asset_type,target_percentage").eq("user_id", userId),
       supabase.from("automation_tokens").select("id,label,last_used_at,revoked_at,created_at").eq("user_id", userId).order("created_at", { ascending: false }),
+      supabase.from("bank_balances").select("id,bank_name,account_hint,balance,currency,reported_at,updated_at").eq("user_id", userId).order("updated_at", { ascending: false }),
+      supabase.from("notification_preferences").select("user_id,daily_limit,daily_limit_enabled,daily_summary_enabled,daily_summary_time,timezone").eq("user_id", userId).maybeSingle(),
+      supabase.from("notification_deliveries").select("id,kind,title,body,status,sent_at,created_at").eq("user_id", userId).order("created_at", { ascending: false }).limit(20),
     ]);
-    const error = [profileResult.error, transactionsResult.error, trashResult.error, obligationsResult.error, assetsResult.error, budgetsResult.error, targetsResult.error, tokensResult.error].find(Boolean);
+    const error = [profileResult.error, transactionsResult.error, trashResult.error, obligationsResult.error, assetsResult.error, budgetsResult.error, targetsResult.error, tokensResult.error, balancesResult.error, notificationPreferencesResult.error, notificationDeliveriesResult.error].find(Boolean);
     if (error) setNotice("بخشی از اطلاعات بارگذاری نشد. دوباره تلاش کن.");
     setProfile(profileResult.data as Profile | null);
     const baseCurrency = profileResult.data?.base_currency ?? "IRR";
@@ -575,6 +607,10 @@ export function FinanceApp({ session }: { session: Session }) {
     setBudgets(((budgetsResult.data ?? []) as Budget[]).map((item) => ({ ...item, amount: tomanValue(item.amount, item.currency), currency: "IRT" })));
     setTargets((targetsResult.data ?? []) as BudgetTarget[]);
     setTokens((tokensResult.data ?? []) as AutomationToken[]);
+    setBankBalances(((balancesResult.data ?? []) as BankBalance[]).map((item) => ({ ...item, balance: tomanValue(item.balance, item.currency), currency: "IRT" })));
+    const rawPreferences = notificationPreferencesResult.data as NotificationPreferences | null;
+    setNotificationPreferences(rawPreferences ? { ...rawPreferences, daily_limit: rawPreferences.daily_limit ? tomanValue(rawPreferences.daily_limit, "IRR") : null } : null);
+    setNotificationDeliveries((notificationDeliveriesResult.data ?? []) as NotificationDelivery[]);
     setLoading(false);
     return !error;
   }, [userId]);
@@ -583,6 +619,22 @@ export function FinanceApp({ session }: { session: Session }) {
     const timer = window.setTimeout(() => void loadData(), 0);
     return () => window.clearTimeout(timer);
   }, [loadData]);
+
+  useEffect(() => {
+    let cancelled = false;
+    async function syncPushStatus() {
+      if (!("Notification" in window) || !("serviceWorker" in navigator) || !("PushManager" in window)) {
+        if (!cancelled) setPushPermission("unsupported");
+        return;
+      }
+      if (!cancelled) setPushPermission(Notification.permission);
+      const registration = await navigator.serviceWorker.getRegistration();
+      const subscription = await registration?.pushManager.getSubscription();
+      if (!cancelled) setPushEnabled(Boolean(subscription));
+    }
+    void syncPushStatus();
+    return () => { cancelled = true; };
+  }, []);
 
   const refreshTokens = useCallback(async () => {
     const { data } = await supabase.from("automation_tokens").select("id,label,last_used_at,revoked_at,created_at").eq("user_id", userId).order("created_at", { ascending: false });
@@ -600,6 +652,107 @@ export function FinanceApp({ session }: { session: Session }) {
   const openView = (view: ViewId) => { setActiveView(view); setMenuOpen(false); window.scrollTo({ top: 0, behavior: "smooth" }); };
   const currency = "تومان";
   const name = profile?.full_name?.trim() || session.user.user_metadata?.full_name || session.user.email?.split("@")[0] || "دوست من";
+
+  async function enablePushNotifications() {
+    setNotice(null);
+    if (!("Notification" in window) || !("serviceWorker" in navigator) || !("PushManager" in window)) {
+      setPushPermission("unsupported");
+      setNotice("این مرورگر از اعلان‌های PWA پشتیبانی نمی‌کند.");
+      return;
+    }
+    const isIos = /iphone|ipad|ipod/i.test(navigator.userAgent);
+    const isInstalled = window.matchMedia("(display-mode: standalone)").matches
+      || Boolean((navigator as Navigator & { standalone?: boolean }).standalone);
+    if (isIos && !isInstalled) {
+      setNotice("در آیفون ابتدا دارایی‌بان را از بخش نصب به Home Screen اضافه کن و نسخه نصب‌شده را باز کن.");
+      return;
+    }
+
+    try {
+      const permission = await Notification.requestPermission();
+      setPushPermission(permission);
+      if (permission !== "granted") {
+        setNotice("اجازه اعلان داده نشد؛ می‌توانی آن را از تنظیمات مرورگر یا گوشی فعال کنی.");
+        return;
+      }
+
+      const registration = await navigator.serviceWorker.getRegistration()
+        ?? await navigator.serviceWorker.register("/sw.js");
+      await navigator.serviceWorker.ready;
+      const subscription = await registration.pushManager.getSubscription()
+        ?? await registration.pushManager.subscribe({
+          userVisibleOnly: true,
+          applicationServerKey: base64UrlToUint8Array(VAPID_PUBLIC_KEY),
+        });
+      const serialized = subscription.toJSON();
+      if (!serialized.endpoint || !serialized.keys?.p256dh || !serialized.keys.auth) {
+        setNotice("ساخت اشتراک اعلان کامل نشد؛ دوباره تلاش کن.");
+        return;
+      }
+      const { error } = await supabase.from("push_subscriptions").upsert({
+        user_id: userId,
+        endpoint: serialized.endpoint,
+        p256dh: serialized.keys.p256dh,
+        auth: serialized.keys.auth,
+        user_agent: navigator.userAgent,
+        last_used_at: new Date().toISOString(),
+      }, { onConflict: "user_id,endpoint" });
+      if (error) {
+        await subscription.unsubscribe();
+        setNotice("ذخیره اشتراک اعلان انجام نشد.");
+        return;
+      }
+      setPushEnabled(true);
+      setNotice("اعلان‌ها روی این دستگاه فعال شد.");
+    } catch {
+      setNotice("فعال‌سازی اعلان انجام نشد؛ برنامه را یک‌بار ببند و دوباره تلاش کن.");
+    }
+  }
+
+  async function disablePushNotifications() {
+    setNotice(null);
+    try {
+      const registration = await navigator.serviceWorker.getRegistration();
+      const subscription = await registration?.pushManager.getSubscription();
+      if (subscription) {
+        await supabase.from("push_subscriptions").delete().eq("user_id", userId).eq("endpoint", subscription.endpoint);
+        await subscription.unsubscribe();
+      }
+      setPushEnabled(false);
+      setNotice("اعلان روی این دستگاه غیرفعال شد.");
+    } catch {
+      setNotice("غیرفعال‌کردن اعلان انجام نشد؛ دوباره تلاش کن.");
+    }
+  }
+
+  async function saveNotificationPreferences(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    setSaving(true);
+    setNotice(null);
+    const form = new FormData(event.currentTarget);
+    const dailyLimitEnabled = form.get("daily_limit_enabled") === "on";
+    const dailySummaryEnabled = form.get("daily_summary_enabled") === "on";
+    const dailyLimit = Number(form.get("daily_limit"));
+    if (dailyLimitEnabled && (!Number.isFinite(dailyLimit) || dailyLimit <= 0)) {
+      setNotice("برای هشدار روزانه یک سقف هزینه معتبر وارد کن.");
+      setSaving(false);
+      return;
+    }
+    const { error } = await supabase.from("notification_preferences").upsert({
+      user_id: userId,
+      daily_limit: dailyLimit > 0 ? rialValue(dailyLimit) : null,
+      daily_limit_enabled: dailyLimitEnabled,
+      daily_summary_enabled: dailySummaryEnabled,
+      daily_summary_time: String(form.get("daily_summary_time") || "21:00"),
+      timezone: "Asia/Tehran",
+    }, { onConflict: "user_id" });
+    if (error) setNotice("ذخیره تنظیمات اعلان انجام نشد.");
+    else {
+      setNotice("تنظیمات اعلان ذخیره شد.");
+      await loadData(true);
+    }
+    setSaving(false);
+  }
 
   function toggleTheme() {
     const next = document.documentElement.dataset.theme === "dark" ? "light" : "dark";
@@ -729,16 +882,17 @@ export function FinanceApp({ session }: { session: Session }) {
       {menuOpen && <button className="sidebar-backdrop" onClick={() => setMenuOpen(false)} aria-label="بستن منو" />}
 
       <div className="workspace">
-        <header className="topbar"><button className="menu-button" onClick={() => setMenuOpen(true)} aria-label="باز کردن منو"><Menu /></button><div className="mobile-brand"><BrandMark /><strong>دارایی‌بان</strong></div><label className="search-box"><Search size={19} /><input value={search} onChange={(event) => setSearch(event.target.value)} onFocus={() => activeView !== "transactions" && setActiveView("transactions")} placeholder="جست‌وجو در تراکنش‌ها..." aria-label="جست‌وجو" /></label><button className="topbar-icon theme-toggle" onClick={toggleTheme} aria-label="تغییر حالت نمایش" title="تغییر حالت نمایش"><Moon className="theme-light-only" size={20} /><Sun className="theme-dark-only" size={20} /></button><button className="topbar-icon" aria-label="اعلان‌ها"><Bell size={20} />{obligations.some((item) => item.due_date && new Date(item.due_date) <= new Date()) && <i />}</button><button className="profile-chip" onClick={() => setModal("password")} type="button"><span>{name.slice(0, 1)}</span><div><strong>{name}</strong><small>تنظیم رمز ورود</small></div><LockKeyhole size={16} /></button></header>
+        <header className="topbar"><button className="menu-button" onClick={() => setMenuOpen(true)} aria-label="باز کردن منو"><Menu /></button><div className="mobile-brand"><BrandMark /><strong>دارایی‌بان</strong></div><label className="search-box"><Search size={19} /><input value={search} onChange={(event) => setSearch(event.target.value)} onFocus={() => activeView !== "transactions" && setActiveView("transactions")} placeholder="جست‌وجو در تراکنش‌ها..." aria-label="جست‌وجو" /></label><button className="topbar-icon theme-toggle" onClick={toggleTheme} aria-label="تغییر حالت نمایش" title="تغییر حالت نمایش"><Moon className="theme-light-only" size={20} /><Sun className="theme-dark-only" size={20} /></button><button className="topbar-icon" onClick={() => openView("notifications")} aria-label="تنظیمات اعلان‌ها"><Bell size={20} />{(pushEnabled || obligations.some((item) => item.due_date && new Date(item.due_date) <= new Date())) && <i />}</button><button className="profile-chip" onClick={() => setModal("password")} type="button"><span>{name.slice(0, 1)}</span><div><strong>{name}</strong><small>تنظیم رمز ورود</small></div><LockKeyhole size={16} /></button></header>
         {notice && <div className="global-notice"><span>{notice}</span><button onClick={() => setNotice(null)} aria-label="بستن"><X size={17} /></button></div>}
         <div className="page-content">
-          {activeView === "dashboard" && <DashboardView name={name} transactions={transactions} obligations={obligations} assets={assets} budgets={budgets} currency={currency} openModal={(kind) => kind === "transaction" ? openNewTransaction() : setModal(kind)} openView={openView} editTransaction={editTransaction} trashTransaction={(transaction) => void moveToTrash(transaction)} onRefresh={() => void refreshData()} refreshing={refreshing} showPasswordNudge={googleOnlyAccount && !passwordReady} openPassword={() => setModal("password")} />}
+          {activeView === "dashboard" && <DashboardView name={name} transactions={transactions} obligations={obligations} assets={assets} budgets={budgets} bankBalances={bankBalances} currency={currency} openModal={(kind) => kind === "transaction" ? openNewTransaction() : setModal(kind)} openView={openView} editTransaction={editTransaction} trashTransaction={(transaction) => void moveToTrash(transaction)} onRefresh={() => void refreshData()} refreshing={refreshing} showPasswordNudge={googleOnlyAccount && !passwordReady} openPassword={() => setModal("password")} />}
           {activeView === "transactions" && <TransactionsView transactions={transactions} currency={currency} search={search} setSearch={setSearch} openModal={openNewTransaction} onEdit={editTransaction} onTrash={(transaction) => void moveToTrash(transaction)} trashCount={trashTransactions.length} openTrash={() => openView("trash")} />}
           {activeView === "calendar" && <CalendarView transactions={transactions} obligations={obligations} currency={currency} onEdit={editTransaction} onTrash={(transaction) => void moveToTrash(transaction)} />}
           {activeView === "obligations" && <ObligationsView obligations={obligations} currency={currency} openModal={() => setModal("obligation")} />}
           {activeView === "assets" && <AssetsView assets={assets} targets={targets} currency={currency} openModal={() => setModal("asset")} />}
           {activeView === "budget" && <BudgetView budgets={budgets} targets={targets} transactions={transactions} currency={currency} openModal={() => setModal("budget")} />}
           {activeView === "academy" && <AcademyView tokens={tokens} userId={userId} refreshTokens={refreshTokens} />}
+          {activeView === "notifications" && <NotificationView preferences={notificationPreferences} deliveries={notificationDeliveries} pushEnabled={pushEnabled} permission={pushPermission} saving={saving} onEnable={enablePushNotifications} onDisable={disablePushNotifications} onSave={saveNotificationPreferences} />}
           {activeView === "install" && <InstallView />}
           {activeView === "trash" && <TrashView transactions={trashTransactions} currency={currency} onRestore={(transaction) => void restoreTransaction(transaction)} onDelete={(transaction) => void permanentlyDeleteTransaction(transaction)} />}
         </div>

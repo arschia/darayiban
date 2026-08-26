@@ -30,6 +30,8 @@
 - ثبت‌نام و ورود با ایمیل/رمز و Google OAuth
 - نگهداری نشست کاربر روی دستگاه و جداسازی داده‌ها با Row Level Security
 - ثبت دستی تراکنش و دریافت خودکار پیامک بانکی از iPhone Shortcuts
+- استخراج «مانده» پیامک و نمایش آخرین موجودی هر بانک و حساب به تومان
+- اعلان PWA برای عبور از سقف هزینه روزانه و گزارش روزانه در ساعت انتخابی
 - ویرایش تراکنش، برچسب‌گذاری، انتقال به سطل زباله، بازیابی و حذف دائمی
 - بودجه‌بندی مبتنی بر برچسب تراکنش؛ برای نمونه بودجه «اسنپ» فقط تراکنش‌های دارای تگ `اسنپ` را محاسبه می‌کند
 - تقویم مالی شمسی و گزارش روزانه
@@ -47,11 +49,14 @@ flowchart TD
   SMS["پیامک بانکی آیفون"] --> SHORTCUT["Apple Shortcuts"]
   SHORTCUT --> EDGE["Edge Function: ingest-sms"]
   EDGE --> DATA
+  EDGE --> PUSH["Web Push"]
+  CRON["Supabase Cron"] --> PUSH
 ```
 
 - **Frontend:** Next.js 16، React 19، TypeScript و CSS اختصاصی
 - **Backend:** Supabase Auth و Postgres
-- **Automation:** Supabase Edge Function برای تحلیل پیامک بانکی
+- **Automation:** Supabase Edge Function برای تحلیل پیامک، موجودی بانک و هشدار سقف هزینه
+- **Notifications:** Web Push استاندارد با VAPID و Supabase Cron برای گزارش روزانه
 - **Hosting:** Vercel با استقرار خودکار شاخه `main`
 - **PWA:** Web App Manifest، Service Worker و آیکن‌های نصب
 
@@ -64,6 +69,8 @@ app/                         رابط کاربری، احراز هویت و من
 lib/supabase.ts              کلاینت Supabase و آدرس endpoint پیامک
 public/                      manifest، service worker، آیکن‌ها و تصویر اشتراک‌گذاری
 supabase/functions/ingest-sms تحلیل پیامک بانکی و ثبت امن تراکنش
+supabase/functions/send-daily-summary ارسال زمان‌بندی‌شده گزارش هزینه روز
+supabase/functions/_shared/push.ts ارسال امن Web Push و پاک‌سازی اشتراک منقضی
 supabase/migrations/         تاریخچه تغییرات دیتابیس و RLS
 docs/                        مستندات معماری و راه‌اندازی
 .github/workflows/ci.yml     بررسی خودکار lint و build
@@ -134,7 +141,16 @@ JSON Body:
 }
 ```
 
-توکن هر کاربر به‌صورت هش‌شده در دیتابیس نگهداری می‌شود. Edge Function پیام‌های تکراری را با fingerprint تشخیص می‌دهد و پیام غیرمالی را وارد جدول تراکنش نمی‌کند.
+توکن هر کاربر به‌صورت هش‌شده در دیتابیس نگهداری می‌شود. Edge Function پیام‌های تکراری را با fingerprint تشخیص می‌دهد، پیام غیرمالی را وارد جدول تراکنش نمی‌کند و اگر پیام شامل «مانده» یا «موجودی» باشد آخرین موجودی همان بانک و حساب را به‌روز می‌کند.
+
+## اعلان‌های PWA
+
+کاربر از بخش «اعلان‌ها» ابتدا دریافت اعلان را روی همان دستگاه فعال می‌کند و سپس می‌تواند سقف هزینه روزانه و ساعت گزارش را تعیین کند. در iOS، وب‌اپ باید ابتدا به Home Screen اضافه و از آیکن نصب‌شده باز شود.
+
+- هشدار سقف هزینه بعد از ثبت برداشت پیامکی و فقط یک‌بار در هر روز ارسال می‌شود.
+- گزارش روزانه با Supabase Cron و Edge Function `send-daily-summary` اجرا می‌شود.
+- هر دستگاه اشتراک جدا دارد و اشتراک‌های منقضی پس از پاسخ 404 یا 410 پاک می‌شوند.
+- کلید خصوصی VAPID و secret زمان‌بندی در Supabase Vault قرار می‌گیرند و نباید وارد مخزن شوند.
 
 ## احراز هویت و Redirect URL
 

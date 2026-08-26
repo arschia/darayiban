@@ -1,5 +1,6 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "npm:@supabase/supabase-js@2.112.3";
+import { notifyOnce } from "../_shared/push.ts";
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
@@ -35,6 +36,16 @@ function numericAmount(value?: string | null) {
   if (!value) return null;
   const amount = Number(value.replace(/[,،\s]/g, ""));
   return Number.isFinite(amount) ? amount : null;
+}
+
+function parseBalance(text: string, fallbackUnit: "ریال" | "تومان") {
+  const match = text.match(
+    /(?:مانده|موجودی)(?:\s+(?:حساب|کارت))?\s*[:：]?\s*([0-9][0-9,،]*)\s*(ریال|تومان)?/i,
+  );
+  const amount = numericAmount(match?.[1]);
+  if (amount === null) return null;
+  const unit = match?.[2] === "تومان" ? "تومان" : match?.[2] === "ریال" ? "ریال" : fallbackUnit;
+  return unit === "تومان" ? amount * 10 : amount;
 }
 
 async function sha256Hex(value: string) {
@@ -168,7 +179,64 @@ function parseMessage(raw: string, deviceTime?: string, providedBank?: string) {
     transactionTime: parseBankTime(text, deviceTime),
     category,
     bankName: detectBank(text, providedBank),
+    balance: parseBalance(text, amountUnit),
   };
+}
+
+function localDateInTehran(value: string) {
+  const parts = new Intl.DateTimeFormat("en-CA", {
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    timeZone: "Asia/Tehran",
+  }).formatToParts(new Date(value));
+  const get = (type: Intl.DateTimeFormatPartTypes) =>
+    parts.find((part) => part.type === type)?.value ?? "";
+  return `${get("year")}-${get("month")}-${get("day")}`;
+}
+
+function toman(value: number) {
+  return new Intl.NumberFormat("fa-IR", { maximumFractionDigits: 0 }).format(value / 10);
+}
+
+async function maybeNotifyDailyLimit(
+  userId: string,
+  transactionTime: string,
+) {
+  const { data: preference, error: preferenceError } = await db
+    .from("notification_preferences")
+    .select("daily_limit,daily_limit_enabled")
+    .eq("user_id", userId)
+    .maybeSingle();
+  if (preferenceError || !preference?.daily_limit_enabled || !preference.daily_limit) return;
+
+  const localDate = localDateInTehran(transactionTime);
+  const start = new Date(`${localDate}T00:00:00+03:30`);
+  const end = new Date(start);
+  end.setUTCDate(end.getUTCDate() + 1);
+  const { data: expenses, error: expenseError } = await db
+    .from("transactions")
+    .select("amount")
+    .eq("user_id", userId)
+    .eq("type", "withdrawal")
+    .is("deleted_at", null)
+    .gte("transaction_time", start.toISOString())
+    .lt("transaction_time", end.toISOString());
+  if (expenseError) throw expenseError;
+
+  const total = (expenses ?? []).reduce((sum, item) => sum + Number(item.amount ?? 0), 0);
+  const limit = Number(preference.daily_limit);
+  if (total < limit) return;
+
+  await notifyOnce(db, {
+    userId,
+    kind: "daily_limit",
+    dedupeKey: `daily-limit:${localDate}`,
+    title: "هشدار سقف هزینه روزانه",
+    body: `هزینه امروز به ${toman(total)} تومان رسید و از سقف ${toman(limit)} تومان عبور کرد.`,
+    tag: `daily-limit-${localDate}`,
+    url: "/",
+  });
 }
 
 Deno.serve(async (request: Request) => {
@@ -269,6 +337,27 @@ Deno.serve(async (request: Request) => {
       bank_name: parsed.bankName,
       transaction_id: inserted.id,
     });
+
+    if (parsed.balance !== null) {
+      const { error: balanceError } = await db.rpc("record_bank_balance", {
+        p_user_id: tokenRow.user_id,
+        p_bank_name: parsed.bankName,
+        p_account_hint: parsed.fromCard ?? parsed.toCard ?? "",
+        p_balance: parsed.balance,
+        p_currency: "IRR",
+        p_reported_at: parsed.transactionTime,
+        p_transaction_id: inserted.id,
+      });
+      if (balanceError) console.error("bank_balance_update_failed", balanceError.message);
+    }
+
+    if (parsed.type === "withdrawal") {
+      EdgeRuntime.waitUntil(
+        maybeNotifyDailyLimit(tokenRow.user_id, parsed.transactionTime).catch((error) =>
+          console.error("daily_limit_notification_failed", error),
+        ),
+      );
+    }
 
     return json({
       ok: true,

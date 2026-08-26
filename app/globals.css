@@ -1322,6 +1322,384 @@ button {
   }
 }
 
+.bank-balances-section {
+  display: grid;
+  gap: 14px;
+  margin-top: 20px;
+}
+
+.bank-balances-heading,
+.bank-balances-heading > div {
+  display: flex;
+  align-items: center;
+}
+
+.bank-balances-heading {
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.bank-balances-heading > div {
+  gap: 10px;
+}
+
+.bank-balances-heading > div > svg {
+  color: var(--primary);
+}
+
+.bank-balances-heading h2,
+.bank-balances-heading p {
+  margin: 0;
+}
+
+.bank-balances-heading h2 {
+  font-size: 16px;
+}
+
+.bank-balances-heading p,
+.bank-balances-heading > span {
+  color: var(--muted);
+  font-size: 11px;
+}
+
+.bank-balances-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(235px, 1fr));
+  gap: 12px;
+}
+
+.bank-balance-card {
+  position: relative;
+  overflow: hidden;
+  min-height: 165px;
+  padding: 18px;
+  background: linear-gradient(145deg, #fff, #f6f8ff);
+}
+
+.bank-balance-card::after {
+  position: absolute;
+  left: -28px;
+  bottom: -42px;
+  width: 120px;
+  height: 120px;
+  border-radius: 50%;
+  background: rgba(83, 104, 243, .07);
+  content: "";
+}
+
+.bank-balance-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.bank-balance-top > span {
+  width: 39px;
+  height: 39px;
+  display: grid;
+  place-items: center;
+  border-radius: 12px;
+  background: var(--primary-soft);
+  color: var(--primary);
+}
+
+.bank-balance-top time,
+.bank-balance-card em {
+  color: var(--muted);
+  font-size: 10px;
+  font-style: normal;
+}
+
+.bank-balance-card > p {
+  margin: 17px 0 3px;
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.bank-balance-card > strong {
+  display: block;
+  margin-bottom: 8px;
+  font-size: clamp(22px, 2.2vw, 29px);
+  letter-spacing: -.8px;
+}
+
+.bank-balance-card > strong small {
+  color: var(--muted);
+  font-size: 11px;
+}
+
+.notification-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1.15fr) minmax(310px, .85fr);
+  gap: 16px;
+}
+
+.push-device-card {
+  grid-column: 1 / -1;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 15px;
+  padding: 20px;
+}
+
+.push-status-icon {
+  width: 50px;
+  height: 50px;
+  display: grid;
+  place-items: center;
+  border-radius: 16px;
+  background: var(--primary-soft);
+  color: var(--primary);
+}
+
+.push-status-icon.active {
+  background: var(--green-soft);
+  color: var(--green);
+}
+
+.push-device-card span {
+  color: var(--muted);
+  font-size: 11px;
+}
+
+.push-device-card h2,
+.push-device-card p {
+  margin: 0;
+}
+
+.push-device-card h2 {
+  margin-top: 2px;
+  font-size: 17px;
+}
+
+.push-device-card p {
+  margin-top: 4px;
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.notification-device-button {
+  white-space: nowrap;
+}
+
+.notification-form,
+.notification-history {
+  padding: 22px;
+}
+
+.notification-form {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.notification-rule {
+  display: grid !important;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 12px;
+  padding: 14px;
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  background: var(--canvas);
+}
+
+.rule-icon {
+  width: 39px;
+  height: 39px;
+  display: grid;
+  place-items: center;
+  border-radius: 12px;
+  background: var(--coral-soft);
+  color: var(--coral);
+}
+
+.rule-icon.summary {
+  background: var(--primary-soft);
+  color: var(--primary);
+}
+
+.rule-copy {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.rule-copy strong {
+  font-size: 13px;
+}
+
+.rule-copy small {
+  color: var(--muted);
+  font-size: 10px;
+  line-height: 1.7;
+}
+
+.notification-rule input[type="checkbox"] {
+  width: 20px;
+  height: 20px;
+  accent-color: var(--primary);
+}
+
+.limit-input {
+  display: grid !important;
+  grid-template-columns: 145px minmax(0, 1fr);
+  align-items: center;
+  gap: 12px;
+}
+
+.limit-input > span {
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.limit-input > div {
+  position: relative;
+}
+
+.limit-input > div input {
+  width: 100%;
+  padding-left: 80px;
+}
+
+.limit-input > div em {
+  position: absolute;
+  left: 13px;
+  top: 50%;
+  color: var(--muted);
+  font-size: 10px;
+  font-style: normal;
+  transform: translateY(-50%);
+}
+
+.notification-history-list {
+  display: flex;
+  flex-direction: column;
+}
+
+.notification-history-list > div {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 10px;
+  padding: 14px 0;
+  border-bottom: 1px solid var(--border);
+}
+
+.notification-history-list > div:last-child {
+  border-bottom: 0;
+}
+
+.delivery-dot {
+  width: 9px;
+  height: 9px;
+  margin-top: 6px;
+  border-radius: 50%;
+  background: var(--coral);
+  box-shadow: 0 0 0 5px var(--coral-soft);
+}
+
+.delivery-dot.sent {
+  background: var(--green);
+  box-shadow: 0 0 0 5px var(--green-soft);
+}
+
+.notification-history-list strong {
+  display: block;
+  font-size: 12px;
+}
+
+.notification-history-list p {
+  margin: 4px 0;
+  color: var(--muted);
+  font-size: 11px;
+  line-height: 1.8;
+}
+
+.notification-history-list time {
+  color: var(--muted);
+  font-size: 9px;
+}
+
+.notification-empty {
+  min-height: 220px;
+  display: grid;
+  place-items: center;
+  align-content: center;
+  gap: 8px;
+  color: var(--muted);
+  text-align: center;
+}
+
+.notification-empty strong {
+  color: var(--ink);
+  font-size: 13px;
+}
+
+.notification-empty p {
+  max-width: 280px;
+  margin: 0;
+  font-size: 11px;
+  line-height: 1.8;
+}
+
+.notification-note {
+  margin-top: 16px;
+}
+
+:root[data-theme="dark"] .bank-balance-card {
+  background: linear-gradient(145deg, #171f30, #1b2540);
+}
+
+:root[data-theme="dark"] .notification-rule {
+  background: #101725;
+}
+
+:root[data-theme="dark"] .push-status-icon,
+:root[data-theme="dark"] .rule-icon.summary,
+:root[data-theme="dark"] .bank-balance-top > span {
+  background: #263255;
+}
+
+:root[data-theme="dark"] .push-status-icon.active {
+  background: #17352f;
+}
+
+@media (max-width: 820px) {
+  .notification-layout {
+    grid-template-columns: 1fr;
+  }
+
+  .push-device-card {
+    grid-column: auto;
+  }
+}
+
+@media (max-width: 620px) {
+  .bank-balances-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .push-device-card {
+    grid-template-columns: auto minmax(0, 1fr);
+  }
+
+  .notification-device-button {
+    grid-column: 1 / -1;
+    width: 100%;
+  }
+
+  .notification-form,
+  .notification-history {
+    padding: 17px;
+  }
+
+  .limit-input {
+    grid-template-columns: 1fr;
+    gap: 7px;
+  }
+}
+
 @media (max-width: 390px) {
   .summary-grid {
     grid-template-columns: 1fr;
