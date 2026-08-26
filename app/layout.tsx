@@ -18,7 +18,7 @@ export const metadata: Metadata = {
   icons: {
     icon: "/favicon.svg",
     shortcut: "/favicon.svg",
-    apple: "/icon-192.png",
+    apple: "/favicon.svg",
   },
   openGraph: {
     type: "website",
@@ -27,13 +27,11 @@ export const metadata: Metadata = {
     description: "تراکنش‌ها، بودجه، بدهی‌ها و دارایی‌هایت را یک‌جا مدیریت کن.",
     url: "/",
     siteName: "دارایی‌بان",
-    images: [{ url: "/og.png", width: 1200, height: 630, alt: "دارایی‌بان، دستیار مالی شخصی شما" }],
   },
   twitter: {
     card: "summary_large_image",
     title: "دارایی‌بان | دستیار مالی شخصی",
     description: "تراکنش‌ها، بودجه، بدهی‌ها و دارایی‌هایت را یک‌جا مدیریت کن.",
-    images: ["/og.png"],
   },
 };
 

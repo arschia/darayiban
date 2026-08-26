@@ -1,5 +1,5 @@
 const CACHE_NAME = "darayiban-shell-v3";
-const SHELL = ["/", "/manifest.webmanifest", "/favicon.svg", "/icon-192.png", "/icon-512.png"];
+const SHELL = ["/", "/manifest.webmanifest", "/favicon.svg"];
 
 self.addEventListener("install", (event) => {
   event.waitUntil(caches.open(CACHE_NAME).then((cache) => cache.addAll(SHELL)));
@@ -57,8 +57,6 @@ self.addEventListener("push", (event) => {
   const title = payload.title || "دارایی‌بان";
   const options = {
     body: payload.body || "گزارش مالی تازه‌ای برایت آماده شده است.",
-    icon: "/icon-192.png",
-    badge: "/icon-192.png",
     dir: "rtl",
     lang: "fa",
     tag: payload.tag || "darayiban-notification",
