@@ -3252,18 +3252,7 @@ button {
   line-height: 1.8;
 }
 
-.waiting-chip {
-  width: max-content;
-  display: flex;
-  align-items: center;
-  gap: 7px;
-  padding: 8px 10px;
-  border-radius: 10px;
-  background: #f4f5f8;
-  color: #767f91;
-  font-size: 9px;
-  font-weight: 700;
-}
+.shortcut-download { text-decoration: none; }
 
 .automation-status {
   display: flex;
@@ -3890,7 +3879,6 @@ button {
 
 :root[data-theme="dark"] .pill,
 :root[data-theme="dark"] .asset-card-top em,
-:root[data-theme="dark"] .waiting-chip,
 :root[data-theme="dark"] .day-mini-stats > div,
 :root[data-theme="dark"] .segmented {
   background: #222a3b;

@@ -11,7 +11,6 @@ import {
   CalendarDays,
   Check,
   ChevronLeft,
-  Clipboard,
   Coins,
   Copy,
   CreditCard,
@@ -485,7 +484,7 @@ function AcademyView({ tokens, userId, refreshTokens }: { tokens: AutomationToke
   "device_time": "زمان فعلی",
   "bank_name": "سامان"
 }`}</pre></div></article>
-        <article className="panel lesson-card"><span>۴</span><div><h2>فایل Shortcut نهایی</h2><p>بعد از اینکه فایل اتومیشن خودت را بفرستی، آن را با این endpoint هماهنگ می‌کنم و دکمه نصب مستقیم را همین‌جا می‌گذارم.</p><div className="waiting-chip"><Clipboard size={17} /> منتظر فایل اتومیشن تو</div></div></article>
+        <article className="panel lesson-card"><span>۴</span><div><h2>Shortcut آماده را نصب کن</h2><p>روی دکمه زیر بزن تا فایل آماده در اپ Shortcuts آیفون باز شود. پس از نصب، توکن اختصاصی مرحله ۱ را برای اتصال امن وارد کن.</p><a className="primary-button small shortcut-download" href="https://www.icloud.com/shortcuts/53953cc7d23a4424a0bada368f55bd8d" target="_blank" rel="noopener noreferrer"><Download size={17} /> دریافت Shortcut آماده</a></div></article>
       </div>
       <article className="panel automation-status"><div><Sparkles size={22} /><div><strong>endpoint فعال و تست شده</strong><p>پیامک آزمایشی بانک سامان با موفقیت به تراکنش برداشت تبدیل شد و داده آزمایشی هم پاک شد.</p></div></div><span>نسخه ۳</span></article>
     </section>
