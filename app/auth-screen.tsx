@@ -1,7 +1,11 @@
 "use client";
 
 import { ArrowLeft, CheckCircle2, Eye, EyeOff, LockKeyhole, Mail, RefreshCw, ShieldCheck, Sparkles } from "lucide-react";
-import { FormEvent, useState } from "react";
+import { FormEvent, useEffect, useState } from "react";
+import { App } from "@capacitor/app";
+import { Browser } from "@capacitor/browser";
+import { isNativeAndroidApp } from "../lib/android-sms";
+import { completeNativeAuth, nativeAuthRedirectUrl } from "../lib/native-auth";
 import { supabase } from "../lib/supabase";
 import { getAuthRedirectUrl } from "../lib/site-url";
 
@@ -32,20 +36,62 @@ export function AuthScreen() {
   const [resending, setResending] = useState(false);
   const [message, setMessage] = useState<{ type: "error" | "success"; text: string } | null>(null);
 
+  useEffect(() => {
+    if (!isNativeAndroidApp()) return;
+    let handledUrl: string | null = null;
+    let urlListener: { remove: () => Promise<void> } | null = null;
+    let resumeListener: { remove: () => Promise<void> } | null = null;
+
+    async function handleCallback(url: string) {
+      if (!url.startsWith(nativeAuthRedirectUrl) || url === handledUrl) return;
+      handledUrl = url;
+      try {
+        await Browser.close().catch(() => undefined);
+        const { error } = await completeNativeAuth(url);
+        if (error) throw error;
+      } catch {
+        setMessage({ type: "error", text: "ورود گوگل کامل نشد. دوباره تلاش کن." });
+        setGoogleLoading(false);
+      }
+    }
+
+    void App.addListener("appUrlOpen", ({ url }) => void handleCallback(url)).then((listener) => { urlListener = listener; });
+    void App.addListener("resume", () => setGoogleLoading(false)).then((listener) => { resumeListener = listener; });
+    void App.getLaunchUrl().then((result) => { if (result?.url) void handleCallback(result.url); });
+
+    return () => {
+      void urlListener?.remove();
+      void resumeListener?.remove();
+    };
+  }, []);
+
+  function authRedirectUrl() {
+    return isNativeAndroidApp() ? nativeAuthRedirectUrl : getAuthRedirectUrl();
+  }
+
   async function signInWithGoogle() {
     setGoogleLoading(true);
     setMessage(null);
 
-    const { error } = await supabase.auth.signInWithOAuth({
+    const nativeAndroid = isNativeAndroidApp();
+    const { data, error } = await supabase.auth.signInWithOAuth({
       provider: "google",
       options: {
-        redirectTo: getAuthRedirectUrl(),
+        redirectTo: nativeAndroid ? nativeAuthRedirectUrl : getAuthRedirectUrl(),
+        skipBrowserRedirect: nativeAndroid,
       },
     });
 
     if (error) {
       setMessage({ type: "error", text: "اتصال به گوگل انجام نشد. چند لحظه دیگر دوباره امتحان کن." });
       setGoogleLoading(false);
+    } else if (nativeAndroid && data.url) {
+      try {
+        await Browser.open({ url: data.url });
+      } catch {
+        setMessage({ type: "error", text: "مرورگر امن برای ورود گوگل باز نشد." });
+        setGoogleLoading(false);
+      }
     }
   }
 
@@ -60,7 +106,7 @@ export function AuthScreen() {
         password,
         options: {
           data: { full_name: fullName.trim() },
-          emailRedirectTo: getAuthRedirectUrl(),
+          emailRedirectTo: authRedirectUrl(),
         },
       });
       if (error) {
@@ -87,7 +133,7 @@ export function AuthScreen() {
     const { error } = await supabase.auth.resend({
       type: "signup",
       email: pendingEmail,
-      options: { emailRedirectTo: getAuthRedirectUrl() },
+      options: { emailRedirectTo: authRedirectUrl() },
     });
     setMessage(error
       ? { type: "error", text: "ارسال دوباره انجام نشد. یک دقیقه صبر کن و دوباره امتحان کن." }

@@ -3254,6 +3254,89 @@ button {
 
 .shortcut-download { text-decoration: none; }
 
+.android-sms-setup {
+  display: grid;
+  grid-template-columns: 72px minmax(0, 1fr);
+  align-items: start;
+  gap: 20px;
+  padding: 24px;
+}
+
+.android-sms-icon {
+  width: 72px;
+  height: 72px;
+  display: grid;
+  place-items: center;
+  border-radius: 22px;
+  background: var(--primary-soft);
+  color: var(--primary);
+}
+
+.android-sms-icon.active {
+  background: var(--green-soft);
+  color: var(--green);
+}
+
+.android-sms-copy > span {
+  color: var(--primary);
+  font-size: 9px;
+  font-weight: 800;
+}
+
+.android-sms-copy h2 {
+  margin: 5px 0 6px;
+  font-size: 17px;
+}
+
+.android-sms-copy > p {
+  max-width: 680px;
+  margin: 0 0 14px;
+  color: var(--muted);
+  font-size: 10px;
+  line-height: 1.9;
+}
+
+.android-sms-points {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 16px;
+}
+
+.android-sms-points span {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 7px 10px;
+  border-radius: 999px;
+  background: #f4f6fb;
+  color: var(--ink-soft);
+  font-size: 8px;
+  font-weight: 700;
+}
+
+.android-sms-points svg { color: var(--green); }
+.android-sms-copy .auth-message { max-width: 560px; margin: 0 0 12px; }
+
+.secondary-danger-button {
+  min-height: 38px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  padding: 0 14px;
+  border: 1px solid #f1c9c7;
+  border-radius: 11px;
+  background: var(--coral-soft);
+  color: #bf4743;
+  font: inherit;
+  font-size: 9px;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.secondary-danger-button:disabled { opacity: .58; cursor: wait; }
+
 .automation-status {
   display: flex;
   align-items: center;
@@ -3349,6 +3432,20 @@ button {
 }
 
 @media (max-width: 520px) {
+  .android-sms-setup {
+    grid-template-columns: 1fr;
+    gap: 14px;
+    padding: 18px;
+  }
+
+  .android-sms-icon {
+    width: 56px;
+    height: 56px;
+    border-radius: 18px;
+  }
+
+  .android-sms-points { flex-direction: column; align-items: flex-start; }
+
   .global-notice {
     top: 76px;
     right: 14px;

@@ -9,7 +9,8 @@
   <img src="https://img.shields.io/badge/React-19-61DAFB?logo=react&logoColor=111827" alt="React 19" />
   <img src="https://img.shields.io/badge/TypeScript-strict-3178C6?logo=typescript&logoColor=white" alt="TypeScript strict" />
   <img src="https://img.shields.io/badge/Supabase-PostgreSQL-3FCF8E?logo=supabase&logoColor=white" alt="Supabase PostgreSQL" />
-  <img src="https://img.shields.io/badge/PWA-iOS%20%26%20Android-5A0FC8?logo=pwa&logoColor=white" alt="PWA for iOS and Android" />
+  <img src="https://img.shields.io/badge/Android-Capacitor%20%2B%20Kotlin-3DDC84?logo=android&logoColor=white" alt="Android app with Capacitor and Kotlin" />
+  <img src="https://img.shields.io/badge/PWA-iOS%20%26%20Desktop-5A0FC8?logo=pwa&logoColor=white" alt="PWA for iOS and desktop" />
   <img src="https://img.shields.io/badge/UI-فارسی%20%7C%20RTL-6366F1" alt="Persian RTL interface" />
 </p>
 
@@ -21,7 +22,7 @@
   <a href="./SECURITY.md">امنیت</a>
 </p>
 
-یک وب‌اپلیکیشن مالی فارسی، چندکاربره و قابل نصب (PWA) برای ثبت و تحلیل تراکنش‌ها، بودجه، بدهی‌ها، طلب‌ها و دارایی‌ها. دارایی‌بان علاوه بر ثبت دستی، پیامک بانکی آیفون را از طریق Shortcuts دریافت و به تراکنش تبدیل می‌کند.
+یک اپ مالی فارسی و چندکاربره برای ثبت و تحلیل تراکنش‌ها، بودجه، بدهی‌ها، طلب‌ها و دارایی‌ها. دارایی‌بان به‌صورت PWA و اپ اندروید ارائه می‌شود؛ پیامک بانکی در آیفون از طریق Shortcuts و در اندروید مستقیماً داخل خود برنامه به تراکنش تبدیل می‌شود.
 
 > رابط کاربری کاملاً راست‌چین است، مبالغ را به تومان نمایش می‌دهد و تاریخ‌ها را با تقویم شمسی نشان می‌دهد.
 
@@ -29,7 +30,9 @@
 
 - ثبت‌نام و ورود با ایمیل/رمز و Google OAuth
 - نگهداری نشست کاربر روی دستگاه و جداسازی داده‌ها با Row Level Security
-- ثبت دستی تراکنش و دریافت خودکار پیامک بانکی از iPhone Shortcuts
+- ثبت دستی تراکنش و دریافت خودکار پیامک بانکی از iPhone Shortcuts یا اپ بومی Android
+- فعال‌سازی یک‌مرحله‌ای پیامک اندروید، بدون MacroDroid یا برنامه جانبی
+- صف آفلاین و ارسال خودکار پیامک بانکی پس از برگشت اینترنت
 - استخراج «مانده» پیامک و نمایش آخرین موجودی هر بانک و حساب به تومان
 - اعلان PWA برای عبور از سقف هزینه روزانه و گزارش روزانه در ساعت انتخابی
 - ویرایش تراکنش، برچسب‌گذاری، انتقال به سطل زباله، بازیابی و حذف دائمی
@@ -46,8 +49,10 @@
 flowchart TD
   UI["PWA فارسی روی Vercel"] --> AUTH["Supabase Auth"]
   UI --> DATA["Postgres + RLS"]
-  SMS["پیامک بانکی آیفون"] --> SHORTCUT["Apple Shortcuts"]
+  IOS["پیامک بانکی آیفون"] --> SHORTCUT["Apple Shortcuts"]
+  ANDROID["پیامک بانکی اندروید"] --> NATIVE["Kotlin + WorkManager"]
   SHORTCUT --> EDGE["Edge Function: ingest-sms"]
+  NATIVE --> EDGE
   EDGE --> DATA
   EDGE --> PUSH["Web Push"]
   CRON["Supabase Cron"] --> PUSH
@@ -59,6 +64,7 @@ flowchart TD
 - **Notifications:** Web Push استاندارد با VAPID و Supabase Cron برای گزارش روزانه
 - **Hosting:** Vercel با استقرار خودکار شاخه `main`
 - **PWA:** Web App Manifest، Service Worker و آیکن‌های نصب
+- **Android:** Capacitor 8، Kotlin، Android Keystore و WorkManager
 
 شرح جزئی‌تر جریان داده، امنیت و اجزای پروژه در [مستند معماری](docs/ARCHITECTURE.md) آمده است.
 
@@ -66,7 +72,9 @@ flowchart TD
 
 ```text
 app/                         رابط کاربری، احراز هویت و منطق مالی
+android/                     پروژه بومی اندروید، دریافت پیامک و صف آفلاین
 lib/supabase.ts              کلاینت Supabase و آدرس endpoint پیامک
+lib/android-sms.ts           پل TypeScript به قابلیت بومی پیامک اندروید
 public/                      manifest، service worker، آیکن‌ها و تصویر اشتراک‌گذاری
 supabase/functions/ingest-sms تحلیل پیامک بانکی و ثبت امن تراکنش
 supabase/functions/send-daily-summary ارسال زمان‌بندی‌شده گزارش هزینه روز
@@ -74,6 +82,7 @@ supabase/functions/_shared/push.ts ارسال امن Web Push و پاک‌ساز
 supabase/migrations/         تاریخچه تغییرات دیتابیس و RLS
 docs/                        مستندات معماری و راه‌اندازی
 .github/workflows/ci.yml     بررسی خودکار lint و build
+.github/workflows/android.yml ساخت و بررسی APK آزمایشی اندروید
 vercel.json                  تنظیمات استقرار Vercel
 ```
 
@@ -110,6 +119,8 @@ NEXT_PUBLIC_SITE_URL=http://localhost:3000
 |---|---|
 | `npm run dev:vercel` | اجرای محلی با Next.js |
 | `npm run build:vercel` | ساخت نسخه production برای Vercel |
+| `npm run android:sync` | ساخت رابط وب و همگام‌سازی پروژه Android |
+| `npm run android:open` | بازکردن پروژه در Android Studio |
 | `npm run start:vercel` | اجرای build تولیدشده |
 | `npm run lint` | بررسی کیفیت کد |
 | `npm run typecheck` | بررسی کامل TypeScript |
@@ -143,6 +154,26 @@ JSON Body:
 
 توکن هر کاربر به‌صورت هش‌شده در دیتابیس نگهداری می‌شود. Edge Function پیام‌های تکراری را با fingerprint تشخیص می‌دهد، پیام غیرمالی را وارد جدول تراکنش نمی‌کند و اگر پیام شامل «مانده» یا «موجودی» باشد آخرین موجودی همان بانک و حساب را به‌روز می‌کند.
 
+## اپ اندروید
+
+اپ اندروید همان رابط React/TypeScript نسخه PWA را با Capacitor اجرا می‌کند و فقط قابلیت‌های سیستمی با Kotlin نوشته شده‌اند. کاربر پس از ورود، از بخش «آموزش» روی «فعال‌کردن ثبت خودکار» می‌زند و یک‌بار اجازه دریافت پیامک را تأیید می‌کند.
+
+- `BroadcastReceiver` پیامک تازه را از API رسمی Android دریافت می‌کند.
+- پیامک‌های رمز پویا و کد ورود کنار گذاشته می‌شوند و فقط الگوهای تراکنش بانکی وارد صف می‌شوند.
+- WorkManager در نبود اینترنت پیام را نگه می‌دارد و با backoff نمایی دوباره ارسال می‌کند.
+- توکن خام در دیتابیس ذخیره نمی‌شود و نسخه روی گوشی با AES/GCM و کلید غیرقابل‌استخراج Android Keystore رمزگذاری می‌شود.
+- حداقل نسخه پشتیبانی‌شده Android 7 (API 24) است و پیاده‌سازی به برند یا رابط سازنده خاصی وابسته نیست.
+
+برای ساخت محلی، Android Studio، JDK 21 و SDK 36 را نصب و سپس این فرمان‌ها را اجرا کنید:
+
+```bash
+npm ci
+npm run android:sync
+npm run android:open
+```
+
+Workflow با نام **Android APK** نیز پس از هر تغییر مرتبط، یک APK آزمایشی قابل نصب را به‌عنوان artifact می‌سازد. نسخه انتشار عمومی باید با keystore خصوصی امضا شود؛ فایل keystore نباید وارد مخزن شود.
+
 ## اعلان‌های PWA
 
 کاربر از بخش «اعلان‌ها» ابتدا دریافت اعلان را روی همان دستگاه فعال می‌کند و سپس می‌تواند سقف هزینه روزانه و ساعت گزارش را تعیین کند. در iOS، وب‌اپ باید ابتدا به Home Screen اضافه و از آیکن نصب‌شده باز شود.
@@ -160,6 +191,7 @@ JSON Body:
 - Redirect URL: همان دامنه اصلی با `/**`
 - برای previewهای Vercel در صورت نیاز: `https://*-YOUR-VERCEL-SLUG.vercel.app/**`
 - برای توسعه محلی: `http://localhost:3000/**`
+- برای اپ Android: `app.darayiban.mobile://**`
 
 در Google OAuth فقط callback خود Supabase ثبت می‌شود:
 
@@ -167,13 +199,15 @@ JSON Body:
 https://YOUR_PROJECT.supabase.co/auth/v1/callback
 ```
 
+نسخه Android ورود گوگل را در مرورگر امن سیستم باز می‌کند و با deep link به اپ برمی‌گرداند. جریان OAuth از PKCE استفاده می‌کند و اپ فقط callbackهای scheme و مسیر تعریف‌شده خودش را می‌پذیرد.
+
 ## امنیت
 
 - تمام جدول‌های مالی در schema عمومی دارای RLS هستند.
 - هر policy دسترسی را با شناسه کاربر محدود می‌کند.
 - کاربران ناشناس به داده‌های مالی دسترسی ندارند.
 - Edge Function برای عملیات سروری از `service_role` استفاده می‌کند؛ این کلید در frontend وجود ندارد.
-- توکن Shortcut قابل لغو است و مقدار خام آن در دیتابیس ذخیره نمی‌شود.
+- توکن اتوماسیون قابل لغو است و مقدار خام آن در دیتابیس ذخیره نمی‌شود؛ در اندروید مقدار محلی با Keystore رمزگذاری می‌شود.
 - فایل‌های `.env*` در Git نادیده گرفته می‌شوند و فقط `.env.example` ثبت شده است.
 
 برای گزارش امن آسیب‌پذیری و سیاست مدیریت اطلاعات حساس، [سند امنیت پروژه](SECURITY.md) را بخوانید.
@@ -188,4 +222,4 @@ https://YOUR_PROJECT.supabase.co/auth/v1/callback
 
 ---
 
-ساخته‌شده برای مدیریت مالی شخصی فارسی با تمرکز بر موبایل، حریم خصوصی و اتوماسیون آیفون.
+ساخته‌شده برای مدیریت مالی شخصی فارسی با تمرکز بر موبایل، حریم خصوصی و اتوماسیون پیامک.

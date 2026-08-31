@@ -43,6 +43,7 @@ import {
 } from "lucide-react";
 import { FormEvent, ReactNode, useCallback, useEffect, useMemo, useState } from "react";
 import { smsEndpoint, supabase } from "../lib/supabase";
+import { AndroidSmsStatus, isNativeAndroidApp, SmsBridge } from "../lib/android-sms";
 import { base64UrlToUint8Array, VAPID_PUBLIC_KEY } from "../lib/push";
 import { NotificationView } from "./notification-view";
 import {
@@ -452,6 +453,24 @@ function AcademyView({ tokens, userId, refreshTokens }: { tokens: AutomationToke
   const [rawToken, setRawToken] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [copied, setCopied] = useState<string | null>(null);
+  const [nativeAndroid, setNativeAndroid] = useState(false);
+  const [androidStatus, setAndroidStatus] = useState<AndroidSmsStatus | null>(null);
+  const [androidMessage, setAndroidMessage] = useState<{ type: "error" | "success"; text: string } | null>(null);
+
+  useEffect(() => {
+    const isAndroid = isNativeAndroidApp();
+    if (isAndroid) {
+      void SmsBridge.getStatus()
+        .then((status) => {
+          setNativeAndroid(true);
+          setAndroidStatus(status);
+        })
+        .catch(() => {
+          setNativeAndroid(true);
+          setAndroidMessage({ type: "error", text: "وضعیت دریافت پیامک خوانده نشد. برنامه را دوباره باز کن." });
+        });
+    }
+  }, []);
 
   async function copy(value: string, key: string) {
     await navigator.clipboard.writeText(value);
@@ -459,34 +478,103 @@ function AcademyView({ tokens, userId, refreshTokens }: { tokens: AutomationToke
     window.setTimeout(() => setCopied(null), 1500);
   }
 
-  async function generateToken() {
-    setBusy(true);
+  async function createToken(label: string) {
     const bytes = crypto.getRandomValues(new Uint8Array(24));
     const token = `db_${Array.from(bytes).map((byte) => byte.toString(16).padStart(2, "0")).join("")}`;
     const digest = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(token));
     const tokenHash = Array.from(new Uint8Array(digest)).map((byte) => byte.toString(16).padStart(2, "0")).join("");
-    const { error } = await supabase.from("automation_tokens").insert({ user_id: userId, label: "iPhone Shortcut", token_hash: tokenHash });
-    if (!error) {
-      setRawToken(token);
+    const { data, error } = await supabase
+      .from("automation_tokens")
+      .insert({ user_id: userId, label, token_hash: tokenHash })
+      .select("id")
+      .single();
+    if (error || !data?.id) throw error ?? new Error("Token creation failed");
+    return { id: String(data.id), token };
+  }
+
+  async function generateToken() {
+    setBusy(true);
+    try {
+      const created = await createToken("iPhone Shortcut");
+      setRawToken(created.token);
       await refreshTokens();
+    } finally {
+      setBusy(false);
     }
-    setBusy(false);
+  }
+
+  async function activateAndroidSms() {
+    setBusy(true);
+    setAndroidMessage(null);
+    let createdTokenId: string | null = null;
+    try {
+      const permission = await SmsBridge.requestPermission();
+      setAndroidStatus(permission);
+      if (permission.permission !== "granted") {
+        setAndroidMessage({ type: "error", text: "برای ثبت خودکار تراکنش‌ها، اجازه دریافت پیامک را فعال کن." });
+        return;
+      }
+      const created = await createToken("Android SMS");
+      createdTokenId = created.id;
+      const status = await SmsBridge.configure({ token: created.token, endpoint: smsEndpoint, tokenId: created.id });
+      setAndroidStatus(status);
+      await refreshTokens();
+      setAndroidMessage({ type: "success", text: "ثبت خودکار پیامک‌های بانکی فعال شد؛ از این به بعد کار دیگری لازم نیست." });
+    } catch {
+      if (createdTokenId) {
+        await supabase.from("automation_tokens").update({ revoked_at: new Date().toISOString() }).eq("id", createdTokenId).eq("user_id", userId);
+      }
+      setAndroidMessage({ type: "error", text: "فعال‌سازی کامل نشد. اتصال اینترنت را بررسی و دوباره تلاش کن." });
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function disableAndroidSms() {
+    setBusy(true);
+    setAndroidMessage(null);
+    try {
+      const tokenId = androidStatus?.tokenId;
+      if (tokenId) {
+        await supabase.from("automation_tokens").update({ revoked_at: new Date().toISOString() }).eq("id", tokenId).eq("user_id", userId);
+      }
+      const status = await SmsBridge.disable();
+      setAndroidStatus(status);
+      await refreshTokens();
+      setAndroidMessage({ type: "success", text: "ثبت خودکار پیامک در این گوشی غیرفعال شد." });
+    } catch {
+      setAndroidMessage({ type: "error", text: "غیرفعال‌سازی انجام نشد؛ دوباره تلاش کن." });
+    } finally {
+      setBusy(false);
+    }
   }
 
   return (
     <section className="data-view academy-view">
-      <ViewHeader kicker="راهنمای شروع" title="آموزش و اتومیشن آیفون" text="پیامک بانکی را با Shortcuts به endpoint امن خودت بفرست." />
-      <div className="academy-grid">
-        <article className="panel lesson-card"><span>۱</span><div><h2>توکن اختصاصی بساز</h2><p>این توکن مثل کلید ورود اتومیشن است. فقط هش آن در دیتابیس ذخیره می‌شود.</p>{rawToken ? <div className="secret-box"><div><small>فقط همین یک‌بار نمایش داده می‌شود</small><code dir="ltr">{rawToken}</code></div><button onClick={() => copy(rawToken, "token")} type="button">{copied === "token" ? <Check size={17} /> : <Copy size={17} />}</button></div> : <button className="primary-button small" onClick={generateToken} disabled={busy} type="button"><ShieldCheck size={17} />{busy ? "در حال ساخت..." : "ساخت توکن جدید"}</button>}<div className="token-count">{tokens.filter((item) => !item.revoked_at).length.toLocaleString("fa-IR")} توکن فعال</div></div></article>
-        <article className="panel lesson-card"><span>۲</span><div><h2>آدرس endpoint را کپی کن</h2><p>در اکشن Get Contents of URL این آدرس را با متد POST قرار بده.</p><div className="endpoint-box"><code dir="ltr">{smsEndpoint}</code><button onClick={() => copy(smsEndpoint, "endpoint")} type="button">{copied === "endpoint" ? <Check size={17} /> : <Copy size={17} />}</button></div></div></article>
+      <ViewHeader kicker="راهنمای شروع" title={nativeAndroid ? "اتصال پیامک اندروید" : "آموزش و اتومیشن آیفون"} text={nativeAndroid ? "فقط یک‌بار اجازه پیامک را بده؛ بقیه کارها خودکار انجام می‌شود." : "پیامک بانکی را با Shortcuts به endpoint امن خودت بفرست."} />
+      {nativeAndroid ? <article className="panel android-sms-setup">
+        <div className={`android-sms-icon ${androidStatus?.configured ? "active" : ""}`}><Smartphone size={30} /></div>
+        <div className="android-sms-copy">
+          <span>{androidStatus?.configured ? "فعال روی این گوشی" : "راه‌اندازی یک‌مرحله‌ای"}</span>
+          <h2>{androidStatus?.configured ? "پیامک‌های بانکی خودکار ثبت می‌شوند" : "ثبت خودکار را فعال کن"}</h2>
+          <p>دارایی‌بان فقط پیامک‌هایی را که الگوی تراکنش بانکی دارند پردازش می‌کند. اگر اینترنت قطع باشد، پیامک در صف امن گوشی می‌ماند و بعداً ارسال می‌شود.</p>
+          <div className="android-sms-points"><span><Check size={15} /> بدون نصب برنامه جانبی</span><span><Check size={15} /> سازگار با اندروید ۷ به بالا</span><span><Check size={15} /> توکن رمزگذاری‌شده روی گوشی</span></div>
+          {androidMessage && <div className={`auth-message ${androidMessage.type}`} role="status">{androidMessage.text}</div>}
+          {androidStatus?.configured
+            ? <button className="secondary-danger-button" onClick={() => void disableAndroidSms()} disabled={busy} type="button"><X size={17} />{busy ? "کمی صبر کن..." : "غیرفعال‌کردن در این گوشی"}</button>
+            : <button className="primary-button" onClick={() => void activateAndroidSms()} disabled={busy} type="button"><ShieldCheck size={18} />{busy ? "در حال فعال‌سازی..." : "فعال‌کردن ثبت خودکار"}</button>}
+        </div>
+      </article> : <div className="academy-grid">
+        <article className="panel lesson-card"><span>۱</span><div><h2>توکن اختصاصی بساز</h2><p>این توکن مثل کلید ورود اتومیشن است. فقط هش آن در دیتابیس ذخیره می‌شود.</p>{rawToken ? <div className="secret-box"><div><small>فقط همین یک‌بار نمایش داده می‌شود</small><code dir="ltr">{rawToken}</code></div><button onClick={() => copy(rawToken, "token")} type="button">{copied === "token" ? <Check size={17} /> : <Copy size={17} />}</button></div> : <button className="primary-button small" onClick={() => void generateToken()} disabled={busy} type="button"><ShieldCheck size={17} />{busy ? "در حال ساخت..." : "ساخت توکن جدید"}</button>}<div className="token-count">{tokens.filter((item) => !item.revoked_at).length.toLocaleString("fa-IR")} توکن فعال</div></div></article>
+        <article className="panel lesson-card"><span>۲</span><div><h2>آدرس endpoint را کپی کن</h2><p>در اکشن Get Contents of URL این آدرس را با متد POST قرار بده.</p><div className="endpoint-box"><code dir="ltr">{smsEndpoint}</code><button onClick={() => void copy(smsEndpoint, "endpoint")} type="button">{copied === "endpoint" ? <Check size={17} /> : <Copy size={17} />}</button></div></div></article>
         <article className="panel lesson-card"><span>۳</span><div><h2>هدر و بدنه درخواست</h2><p>هدر <code dir="ltr">x-selfmali-token</code> را برابر توکن بگذار و متن پیامک را با قالب زیر بفرست.</p><pre dir="ltr">{`{
   "message": "متن پیامک بانکی",
   "device_time": "زمان فعلی",
   "bank_name": "سامان"
 }`}</pre></div></article>
         <article className="panel lesson-card"><span>۴</span><div><h2>Shortcut آماده را نصب کن</h2><p>روی دکمه زیر بزن تا فایل آماده در اپ Shortcuts آیفون باز شود. پس از نصب، توکن اختصاصی مرحله ۱ را برای اتصال امن وارد کن.</p><a className="primary-button small shortcut-download" href="https://www.icloud.com/shortcuts/53953cc7d23a4424a0bada368f55bd8d" target="_blank" rel="noopener noreferrer"><Download size={17} /> دریافت Shortcut آماده</a></div></article>
-      </div>
-      <article className="panel automation-status"><div><Sparkles size={22} /><div><strong>endpoint فعال و تست شده</strong><p>پیامک آزمایشی بانک سامان با موفقیت به تراکنش برداشت تبدیل شد و داده آزمایشی هم پاک شد.</p></div></div><span>نسخه ۳</span></article>
+      </div>}
+      <article className="panel automation-status"><div><Sparkles size={22} /><div><strong>endpoint فعال و تست شده</strong><p>{nativeAndroid ? "نسخه اندروید، صف آفلاین و اتصال امن از همین endpoint استفاده می‌کنند." : "پیامک آزمایشی بانک سامان با موفقیت به تراکنش برداشت تبدیل شد و داده آزمایشی هم پاک شد."}</p></div></div><span>نسخه ۴</span></article>
     </section>
   );
 }
@@ -935,7 +1023,7 @@ export function FinanceApp({ session }: { session: Session }) {
         <div className="brand"><BrandMark /><div><strong>دارایی‌بان</strong><span>دستیار مالی شخصی</span></div></div>
         <button className="close-menu" onClick={() => setMenuOpen(false)} aria-label="بستن منو"><X /></button>
         <nav className="main-nav" aria-label="منوی اصلی"><p>فضای مالی من</p>{navItems.map((item) => { const Icon = item.icon; const count = item.id === "obligations" ? obligations.filter((obligation) => !["settled", "cancelled"].includes(obligation.status)).length : item.id === "trash" ? trashTransactions.length : 0; return <button className={activeView === item.id ? "nav-item active" : "nav-item"} key={item.id} onClick={() => openView(item.id)} type="button"><Icon size={20} /><span>{item.label}</span>{count > 0 && <em>{count.toLocaleString("fa-IR")}</em>}</button>; })}</nav>
-        <div className="automation-card"><div className="automation-icon"><Sparkles size={20} /></div><strong>ثبت خودکار تراکنش</strong><p>اتومیشن آیفون را وصل کن تا پیامک‌های بانکی خودکار ثبت شوند.</p><button onClick={() => openView("academy")} type="button">راه‌اندازی اتومیشن</button></div>
+        <div className="automation-card"><div className="automation-icon"><Sparkles size={20} /></div><strong>ثبت خودکار تراکنش</strong><p>پیامک بانکی را وصل کن تا تراکنش‌ها بدون ورود دستی ثبت شوند.</p><button onClick={() => openView("academy")} type="button">راه‌اندازی اتومیشن</button></div>
         <div className="sidebar-settings"><button className="settings-link" onClick={toggleTheme} type="button"><Moon className="theme-light-only" size={19} /><Sun className="theme-dark-only" size={19} /><span className="theme-light-only">حالت تاریک</span><span className="theme-dark-only">حالت روشن</span></button><button className="settings-link" onClick={() => { setModal("password"); setMenuOpen(false); }} type="button"><LockKeyhole size={19} /> {googleOnlyAccount && !passwordReady ? "ساخت رمز ورود" : "تغییر رمز ورود"}</button></div>
         <div className="profile-card"><div className="avatar">{name.slice(0, 1)}</div><div><strong>{name}</strong><span>{session.user.email}</span></div><button className="logout-button" onClick={() => void supabase.auth.signOut()} aria-label="خروج" type="button"><LogOut size={18} /></button></div>
       </aside>
