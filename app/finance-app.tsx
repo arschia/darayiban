@@ -74,7 +74,7 @@ import {
   tomanValue,
 } from "./finance-types";
 
-type ModalKind = "transaction" | "obligation" | "asset" | "budget" | "password" | null;
+type ModalKind = "transaction" | "obligation" | "asset" | "budget" | "bank-balance" | "password" | null;
 
 const navItems: Array<{ id: ViewId; label: string; icon: typeof LayoutDashboard }> = [
   { id: "dashboard", label: "خانه", icon: LayoutDashboard },
@@ -177,6 +177,7 @@ function DashboardView({
   openModal,
   openView,
   editTransaction,
+  editBankBalance,
   trashTransaction,
   onRefresh,
   refreshing,
@@ -193,6 +194,7 @@ function DashboardView({
   openModal: (kind: ModalKind) => void;
   openView: (view: ViewId) => void;
   editTransaction: (transaction: Transaction) => void;
+  editBankBalance: (balance: BankBalance) => void;
   trashTransaction: (transaction: Transaction) => void;
   onRefresh: () => void;
   refreshing: boolean;
@@ -264,14 +266,17 @@ function DashboardView({
 
       {bankBalances.length ? (
         <section className="bank-balances-section" aria-label="موجودی حساب‌های بانکی">
-          <div className="bank-balances-heading"><div><Landmark size={20} /><div><h2>موجودی حساب‌های بانکی</h2><p>آخرین مانده اعلام‌شده در پیامک هر بانک</p></div></div><span>{bankBalances.length.toLocaleString("fa-IR")} حساب</span></div>
+          <div className="bank-balances-heading"><div><Landmark size={20} /><div><h2>موجودی حساب‌های بانکی</h2><p>آخرین مانده پیامک یا مبلغی که خودت ثبت کرده‌ای</p></div></div><span>{bankBalances.length.toLocaleString("fa-IR")} حساب</span></div>
           <div className="bank-balances-grid">
             {bankBalances.map((item) => (
               <article className="bank-balance-card panel" key={item.id}>
                 <div className="bank-balance-top"><span><Landmark size={21} /></span><time>{dateTime(item.reported_at)}</time></div>
                 <p>موجودی بانک {item.bank_name}</p>
                 <strong>{money(tomanValue(item.balance, item.currency))} <small>{currency}</small></strong>
-                {item.account_hint ? <em>حساب {item.account_hint}</em> : <em>حساب بانکی</em>}
+                <div className="bank-balance-footer">
+                  {item.account_hint ? <em>حساب {item.account_hint}</em> : <em>حساب بانکی</em>}
+                  <button type="button" onClick={() => editBankBalance(item)} aria-label={`ویرایش موجودی بانک ${item.bank_name}`}><Pencil size={14} /> ویرایش موجودی</button>
+                </div>
               </article>
             ))}
           </div>
@@ -558,6 +563,7 @@ export function FinanceApp({ session }: { session: Session }) {
   const [menuOpen, setMenuOpen] = useState(false);
   const [modal, setModal] = useState<ModalKind>(null);
   const [editingTransaction, setEditingTransaction] = useState<Transaction | null>(null);
+  const [editingBankBalance, setEditingBankBalance] = useState<BankBalance | null>(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -770,6 +776,49 @@ export function FinanceApp({ session }: { session: Session }) {
     setModal("transaction");
   }
 
+  function editBankBalance(balance: BankBalance) {
+    setEditingBankBalance(balance);
+    setModal("bank-balance");
+  }
+
+  async function saveBankBalance(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (!editingBankBalance) return;
+    setSaving(true);
+    setNotice(null);
+    const form = new FormData(event.currentTarget);
+    const balance = Number(form.get("balance"));
+    if (!Number.isFinite(balance) || balance < 0) {
+      setNotice("یک مبلغ معتبر برای موجودی وارد کن.");
+      setSaving(false);
+      return;
+    }
+    const reportedAt = new Date().toISOString();
+    const { data, error } = await supabase
+      .from("bank_balances")
+      .update({
+        balance: rialValue(balance),
+        currency: "IRR",
+        reported_at: reportedAt,
+        source_transaction_id: null,
+      })
+      .eq("id", editingBankBalance.id)
+      .eq("user_id", userId)
+      .select("id")
+      .maybeSingle();
+    if (error || !data) {
+      setNotice("ویرایش موجودی انجام نشد؛ اتصال اینترنت را بررسی کن و دوباره تلاش کن.");
+    } else {
+      setBankBalances((current) => current.map((item) => item.id === editingBankBalance.id
+        ? { ...item, balance, currency: "IRT", reported_at: reportedAt, updated_at: reportedAt }
+        : item));
+      setEditingBankBalance(null);
+      setModal(null);
+      setNotice("موجودی حساب به‌صورت دستی به‌روز شد.");
+    }
+    setSaving(false);
+  }
+
   async function savePassword(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setSaving(true);
@@ -897,7 +946,7 @@ export function FinanceApp({ session }: { session: Session }) {
         <header className="topbar"><button className="menu-button" onClick={() => setMenuOpen(true)} aria-label="باز کردن منو"><Menu /></button><div className="mobile-brand"><BrandMark /><strong>دارایی‌بان</strong></div><label className="search-box"><Search size={19} /><input value={search} onChange={(event) => setSearch(event.target.value)} onFocus={() => activeView !== "transactions" && setActiveView("transactions")} placeholder="جست‌وجو در تراکنش‌ها..." aria-label="جست‌وجو" /></label><button className="topbar-icon theme-toggle" onClick={toggleTheme} aria-label="تغییر حالت نمایش" title="تغییر حالت نمایش"><Moon className="theme-light-only" size={20} /><Sun className="theme-dark-only" size={20} /></button><button className="topbar-icon" onClick={() => openView("notifications")} aria-label="تنظیمات اعلان‌ها"><Bell size={20} />{(pushEnabled || obligations.some((item) => item.due_date && new Date(item.due_date) <= new Date())) && <i />}</button><button className="profile-chip" onClick={() => setModal("password")} type="button"><span>{name.slice(0, 1)}</span><div><strong>{name}</strong><small>تنظیم رمز ورود</small></div><LockKeyhole size={16} /></button></header>
         {notice && <div className="global-notice"><span>{notice}</span><button onClick={() => setNotice(null)} aria-label="بستن"><X size={17} /></button></div>}
         <div className="page-content">
-          {activeView === "dashboard" && <DashboardView name={name} transactions={transactions} obligations={obligations} assets={assets} budgets={budgets} bankBalances={bankBalances} currency={currency} openModal={(kind) => kind === "transaction" ? openNewTransaction() : setModal(kind)} openView={openView} editTransaction={editTransaction} trashTransaction={(transaction) => void moveToTrash(transaction)} onRefresh={() => void refreshData()} refreshing={refreshing} showPasswordNudge={googleOnlyAccount && !passwordReady} openPassword={() => setModal("password")} />}
+          {activeView === "dashboard" && <DashboardView name={name} transactions={transactions} obligations={obligations} assets={assets} budgets={budgets} bankBalances={bankBalances} currency={currency} openModal={(kind) => kind === "transaction" ? openNewTransaction() : setModal(kind)} openView={openView} editTransaction={editTransaction} editBankBalance={editBankBalance} trashTransaction={(transaction) => void moveToTrash(transaction)} onRefresh={() => void refreshData()} refreshing={refreshing} showPasswordNudge={googleOnlyAccount && !passwordReady} openPassword={() => setModal("password")} />}
           {activeView === "transactions" && <TransactionsView transactions={transactions} currency={currency} search={search} setSearch={setSearch} openModal={openNewTransaction} onEdit={editTransaction} onTrash={(transaction) => void moveToTrash(transaction)} trashCount={trashTransactions.length} openTrash={() => openView("trash")} />}
           {activeView === "calendar" && <CalendarView transactions={transactions} obligations={obligations} currency={currency} onEdit={editTransaction} onTrash={(transaction) => void moveToTrash(transaction)} />}
           {activeView === "obligations" && <ObligationsView obligations={obligations} currency={currency} openModal={() => setModal("obligation")} />}
@@ -913,6 +962,7 @@ export function FinanceApp({ session }: { session: Session }) {
       <nav className="mobile-nav" aria-label="منوی پایین موبایل">{navItems.slice(0, 5).map((item) => { const Icon = item.icon; return <button key={item.id} className={activeView === item.id ? "active" : ""} onClick={() => openView(item.id)} type="button"><Icon size={20} /><span>{item.label.replace("تقویم مالی", "تقویم").replace("بدهی و طلب", "بدهی‌ها")}</span></button>; })}</nav>
 
       {modal === "password" && <Modal title={googleOnlyAccount && !passwordReady ? "ساخت رمز ورود" : "تغییر رمز ورود"} onClose={() => setModal(null)}><form className="data-form password-form" onSubmit={savePassword}><p>{googleOnlyAccount && !passwordReady ? "این رمز به همان حساب گوگل وصل می‌شود؛ بعد از ذخیره می‌توانی با ایمیل و رمز وارد شوی." : "رمز جدید را وارد کن؛ نشست فعلی حسابت حفظ می‌شود."}</p><label><span>ایمیل حساب</span><input dir="ltr" value={session.user.email ?? ""} readOnly /></label><label><span>رمز جدید</span><input name="password" type="password" minLength={8} autoComplete="new-password" placeholder="حداقل ۸ کاراکتر" dir="ltr" required /></label><label><span>تکرار رمز جدید</span><input name="password_confirmation" type="password" minLength={8} autoComplete="new-password" placeholder="رمز را دوباره وارد کن" dir="ltr" required /></label><button className="primary-button form-submit" disabled={saving} type="submit">{saving ? "در حال ذخیره..." : "ذخیره رمز ورود"}</button></form></Modal>}
+      {modal === "bank-balance" && editingBankBalance && <Modal title={`ویرایش موجودی بانک ${editingBankBalance.bank_name}`} onClose={() => { setModal(null); setEditingBankBalance(null); }}><form className="data-form bank-balance-form" onSubmit={saveBankBalance}><div className="manual-balance-account"><Landmark size={20} /><div><strong>بانک {editingBankBalance.bank_name}</strong><span>{editingBankBalance.account_hint ? `حساب ${editingBankBalance.account_hint}` : "حساب بانکی"}</span></div></div><label><span>موجودی فعلی به {currency}</span><input name="balance" type="number" min="0" step="1" inputMode="numeric" defaultValue={numberValue(editingBankBalance.balance)} autoFocus required /></label><p>مبلغ دستی با زمان فعلی ثبت می‌شود. پیامک جدیدتر می‌تواند موجودی را خودکار به‌روز کند، اما پیامک قدیمیِ با تأخیر این عدد را تغییر نمی‌دهد.</p><button className="primary-button form-submit" disabled={saving} type="submit">{saving ? "در حال ذخیره..." : "ذخیره موجودی"}</button></form></Modal>}
       {modal === "transaction" && <Modal title={editingTransaction ? "ویرایش تراکنش" : "تراکنش جدید"} onClose={() => { setModal(null); setEditingTransaction(null); }}><form className="data-form" onSubmit={saveTransaction}>
         <div className="segmented"><label><input type="radio" name="type" value="withdrawal" defaultChecked={!editingTransaction || editingTransaction.type === "withdrawal"} /><span>برداشت</span></label><label><input type="radio" name="type" value="deposit" defaultChecked={editingTransaction?.type === "deposit"} /><span>واریز</span></label></div>
         <label><span>مبلغ به {currency}</span><input name="amount" type="number" min="1" inputMode="decimal" defaultValue={editingTransaction ? numberValue(editingTransaction.amount) : undefined} placeholder="مثلاً ۲۵۰٬۰۰۰" required /></label>

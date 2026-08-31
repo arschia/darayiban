@@ -1428,6 +1428,69 @@ button {
   font-size: 11px;
 }
 
+.bank-balance-footer {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.bank-balance-footer button {
+  min-height: 32px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  padding: 0 10px;
+  border: 1px solid #dce2ff;
+  border-radius: 10px;
+  background: rgba(255, 255, 255, .72);
+  color: var(--primary);
+  cursor: pointer;
+  font: inherit;
+  font-size: 10px;
+  font-weight: 800;
+}
+
+.bank-balance-footer button:hover {
+  border-color: #bbc5ff;
+  background: #fff;
+}
+
+.manual-balance-account {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  padding: 12px 14px;
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  background: var(--primary-soft);
+  color: var(--primary);
+}
+
+.manual-balance-account > div {
+  display: grid;
+  gap: 2px;
+}
+
+.manual-balance-account strong {
+  color: var(--ink);
+  font-size: 13px;
+}
+
+.manual-balance-account span,
+.bank-balance-form > p {
+  color: var(--muted);
+  font-size: 11px;
+}
+
+.bank-balance-form > p {
+  margin: -2px 0 0;
+  line-height: 1.9;
+}
+
 .notification-layout {
   display: grid;
   grid-template-columns: minmax(0, 1.15fr) minmax(310px, .85fr);
@@ -1659,6 +1722,12 @@ button {
 :root[data-theme="dark"] .rule-icon.summary,
 :root[data-theme="dark"] .bank-balance-top > span {
   background: #263255;
+}
+
+:root[data-theme="dark"] .bank-balance-footer button {
+  border-color: #344263;
+  background: rgba(24, 33, 52, .82);
+  color: #bdc7ff;
 }
 
 :root[data-theme="dark"] .push-status-icon.active {
