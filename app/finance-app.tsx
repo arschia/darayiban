@@ -638,7 +638,14 @@ function InstallView() {
       </div>
       <div className="install-grid">
         <article className={platform === "ios" ? "panel install-guide recommended" : "panel install-guide"}><div className="install-guide-head"><span><Smartphone size={23} /></span><div><h2>آیفون و آیپد</h2><p>نصب از مرورگر Safari</p></div>{platform === "ios" && <em>دستگاه شما</em>}</div><ol><li>همین صفحه را در <strong>Safari</strong> باز کن.</li><li>پایین صفحه روی دکمه <Share2 size={15} /> <strong>Share</strong> بزن.</li><li>گزینه <strong>Add to Home Screen</strong> را انتخاب کن.</li><li>بالا روی <strong>Add</strong> بزن تا آیکن برنامه اضافه شود.</li></ol></article>
-        <article className={platform === "android" ? "panel install-guide recommended" : "panel install-guide"}><div className="install-guide-head"><span><Download size={23} /></span><div><h2>اندروید</h2><p>نصب از مرورگر Chrome</p></div>{platform === "android" && <em>دستگاه شما</em>}</div><ol><li>صفحه را در <strong>Chrome</strong> باز کن.</li><li>از منوی سه‌نقطه، <strong>Install app</strong> یا <strong>Add to Home screen</strong> را بزن.</li><li>پیام نصب را تأیید کن.</li></ol>{promptEvent && !installed ? <button className="primary-button install-button inline" onClick={() => void install()} type="button"><Download size={18} /> نصب مستقیم</button> : null}</article>
+        <article className={platform === "android" ? "panel install-guide recommended" : "panel install-guide"}>
+          <div className="install-guide-head"><span><Download size={23} /></span><div><h2>نسخه اندروید</h2><p>دانلود مستقیم APK · حدود ۶ مگابایت</p></div>{platform === "android" && <em>دستگاه شما</em>}</div>
+          <ol><li>روی دکمه <strong>دانلود APK</strong> بزن.</li><li>اگر اندروید پرسید، اجازه نصب از مرورگر را تأیید کن.</li><li>بعد از ورود، در بخش آموزش روی <strong>فعال‌کردن ثبت خودکار</strong> بزن و مجوز پیامک را بده.</li></ol>
+          <div className="android-apk-actions">
+            <a className="primary-button install-button inline" href="https://darayiban.su-bifyt-ub.chatgpt.site/downloads/darayiban-android.apk"><Download size={18} /> دانلود نسخه اندروید</a>
+            {promptEvent && !installed ? <button className="android-pwa-link" onClick={() => void install()} type="button">نصب نسخه PWA</button> : null}
+          </div>
+        </article>
       </div>
       <div className="install-note"><ShieldCheck size={20} /><div><strong>حساب و اطلاعاتت همان حساب فعلی باقی می‌ماند</strong><p>نسخه نصب‌شده به همان اطلاعات امن سایت وصل است و برای استفاده دوباره نیازی به ساخت حساب جداگانه نداری.</p></div></div>
     </section>

@@ -3857,6 +3857,29 @@ button {
   margin-top: 15px;
 }
 
+.android-apk-actions {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.android-apk-actions .install-button {
+  text-decoration: none;
+}
+
+.android-pwa-link {
+  min-height: 42px;
+  margin-top: 15px;
+  padding: 0 12px;
+  border: 0;
+  background: transparent;
+  color: var(--primary);
+  cursor: pointer;
+  font-size: 9px;
+  font-weight: 800;
+}
+
 .install-note {
   display: flex;
   align-items: flex-start;
