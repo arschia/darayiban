@@ -20,6 +20,9 @@ self.addEventListener("fetch", (event) => {
   const url = new URL(request.url);
   if (request.method !== "GET" || url.origin !== self.location.origin) return;
 
+  // Installers must download from the server, never replace the cached app shell.
+  if (url.pathname.startsWith("/downloads/")) return;
+
   if (request.mode === "navigate") {
     event.respondWith(
       fetch(request)

@@ -10,7 +10,7 @@
     "dev": "WRANGLER_LOG_PATH=.wrangler/wrangler.log vite",
     "dev:vercel": "next dev",
     "build": "bash scripts/build-verified.sh",
-    "build:vercel": "next build --webpack",
+    "build:vercel": "node scripts/prepare-android-download.mjs && next build --webpack",
     "build:android:web": "NEXT_TELEMETRY_DISABLED=1 CAPACITOR_BUILD=1 next build --webpack",
     "android:add": "npx cap add android",
     "android:sync": "npm run build:android:web && node scripts/prepare-android-assets.mjs && npx cap sync android",

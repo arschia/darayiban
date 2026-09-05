@@ -43,3 +43,7 @@ next-env.d.ts
 /outputs/
 /work/
 /supabase/.temp/
+
+# Verified release installers are prepared at build time.
+/public/downloads/*.apk
+/public/downloads/*.sha256

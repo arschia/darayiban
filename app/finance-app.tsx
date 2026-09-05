@@ -685,10 +685,10 @@ function InstallView() {
       <div className="install-grid">
         <article className={platform === "ios" ? "panel install-guide recommended" : "panel install-guide"}><div className="install-guide-head"><span><Smartphone size={23} /></span><div><h2>آیفون و آیپد</h2><p>نصب از مرورگر Safari</p></div>{platform === "ios" && <em>دستگاه شما</em>}</div><ol><li>همین صفحه را در <strong>Safari</strong> باز کن.</li><li>پایین صفحه روی دکمه <Share2 size={15} /> <strong>Share</strong> بزن.</li><li>گزینه <strong>Add to Home Screen</strong> را انتخاب کن.</li><li>بالا روی <strong>Add</strong> بزن تا آیکن برنامه اضافه شود.</li></ol></article>
         <article className={platform === "android" ? "panel install-guide recommended" : "panel install-guide"}>
-          <div className="install-guide-head"><span><Download size={23} /></span><div><h2>نسخه اندروید</h2><p>نسخه ۱.۱.۰ · همراه دستیار هوش مصنوعی Gemini</p></div>{platform === "android" && <em>دستگاه شما</em>}</div>
+          <div className="install-guide-head"><span><Download size={23} /></span><div><h2>نسخه اندروید</h2><p>نسخه ۱.۱.۱ · همراه دستیار هوش مصنوعی Gemini</p></div>{platform === "android" && <em>دستگاه شما</em>}</div>
           <ol><li>روی دکمه <strong>دانلود APK</strong> بزن.</li><li>اگر اندروید پرسید، اجازه نصب از مرورگر را تأیید کن.</li><li>بعد از ورود، در بخش آموزش روی <strong>فعال‌کردن ثبت خودکار</strong> بزن و مجوز پیامک را بده.</li></ol>
           <div className="android-apk-actions">
-            <a className="primary-button install-button inline" href="https://drive.google.com/file/d/1hGgnOKkdoNPL3E4wzQtKaST30BMjc9xX/view?usp=drive_link"><Download size={18} /> دانلود اندروید با دستیار مالی</a>
+            <a className="primary-button install-button inline" href="https://selfmali.vercel.app/downloads/darayiban-android.apk" download="darayiban-android-1.1.1.apk"><Download size={18} /> دانلود اندروید با دستیار مالی</a>
             {promptEvent && !installed ? <button className="android-pwa-link" onClick={() => void install()} type="button">نصب نسخه PWA</button> : null}
           </div>
         </article>
