@@ -51,7 +51,7 @@ test("Gemini credentials can only be resolved by the server role", async () => {
     await db.exec(
       await readFile(
         new URL(
-          "../supabase/migrations/20260905132518_assistant_gemini_credentials.sql",
+          "../supabase/migrations/20260905133047_assistant_gemini_credentials.sql",
           import.meta.url,
         ),
         "utf8",
@@ -91,7 +91,7 @@ test("PostgreSQL assistant ownership, mutations, idempotency and alerts", async 
     await db.exec(
       await readFile(
         new URL(
-          "../supabase/migrations/20260905125343_financial_assistant.sql",
+          "../supabase/migrations/20260905133044_financial_assistant.sql",
           import.meta.url,
         ),
         "utf8",

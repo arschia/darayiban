@@ -1,4 +1,4 @@
-export const MODEL = "gemini-3.8-flash";
+export const MODEL = "gemini-3.5-flash-lite";
 export const MAX_PROMPT = 4000;
 export function toRial(value: unknown): number {
   if (
