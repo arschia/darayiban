@@ -12,6 +12,7 @@ on:
       - "package-lock.json"
       - "capacitor.config.ts"
       - "next.config.ts"
+      - "scripts/prepare-android-assets.mjs"
       - ".github/workflows/android.yml"
   push:
     branches: [main]
@@ -24,6 +25,7 @@ on:
       - "package-lock.json"
       - "capacitor.config.ts"
       - "next.config.ts"
+      - "scripts/prepare-android-assets.mjs"
       - ".github/workflows/android.yml"
 
 permissions:
@@ -70,6 +72,19 @@ jobs:
         working-directory: android
         run: ./gradlew testDebugUnitTest assembleDebug lintDebug --stacktrace
 
+      - name: Verify APK signature and assistant assets
+        run: |
+          "$ANDROID_HOME/build-tools/35.0.0/apksigner" verify --verbose --print-certs android/app/build/outputs/apk/debug/app-debug.apk
+          "$ANDROID_HOME/build-tools/35.0.0/aapt" dump badging android/app/build/outputs/apk/debug/app-debug.apk | sed -n '1,5p'
+          python - <<'PY'
+          import zipfile
+          with zipfile.ZipFile('android/app/build/outputs/apk/debug/app-debug.apk') as apk:
+              scripts = [name for name in apk.namelist() if name.startswith('assets/public/') and name.endswith('.js')]
+              assert any(b'financial-assistant' in apk.read(name) for name in scripts), 'Assistant missing from APK'
+              assert not any(name.endswith('.apk') for name in apk.namelist()), 'Nested APK found'
+          print('Assistant verified inside the signed APK')
+          PY
+
       - name: Upload installable APK
         uses: actions/upload-artifact@v4
         with:
@@ -77,3 +92,35 @@ jobs:
           path: android/app/build/outputs/apk/debug/app-debug.apk
           if-no-files-found: error
           retention-days: 14
+
+  publish-android:
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    needs: build-debug-apk
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    env:
+      GH_TOKEN: ${{ github.token }}
+      RELEASE_TAG: android-v1.1.0
+    steps:
+      - name: Checkout release notes
+        uses: actions/checkout@v4
+
+      - name: Download verified APK
+        uses: actions/download-artifact@v4
+        with:
+          name: darayiban-android-debug
+          path: release-apk
+
+      - name: Publish the Android assistant release
+        run: |
+          mv release-apk/app-debug.apk release-apk/darayiban-android.apk
+          (cd release-apk && sha256sum darayiban-android.apk > darayiban-android.apk.sha256)
+          if gh release view "$RELEASE_TAG" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            echo "This version is already published; increment the version and release tag for a new release."
+            exit 0
+          fi
+          gh release create "$RELEASE_TAG" release-apk/darayiban-android.apk release-apk/darayiban-android.apk.sha256 \
+            --repo "$GITHUB_REPOSITORY" --target "$GITHUB_SHA" \
+            --title "دارایی‌بان اندروید ۱.۱.۰ با دستیار Gemini" \
+            --notes-file docs/ANDROID_1.1.0.md
