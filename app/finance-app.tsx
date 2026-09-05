@@ -644,7 +644,7 @@ function InstallView() {
           <div className="install-guide-head"><span><Download size={23} /></span><div><h2>نسخه اندروید</h2><p>نسخه ۱.۱.۰ · همراه دستیار هوش مصنوعی Gemini</p></div>{platform === "android" && <em>دستگاه شما</em>}</div>
           <ol><li>روی دکمه <strong>دانلود APK</strong> بزن.</li><li>اگر اندروید پرسید، اجازه نصب از مرورگر را تأیید کن.</li><li>بعد از ورود، در بخش آموزش روی <strong>فعال‌کردن ثبت خودکار</strong> بزن و مجوز پیامک را بده.</li></ol>
           <div className="android-apk-actions">
-            <a className="primary-button install-button inline" href="https://github.com/arschia/darayiban/releases/download/android-v1.1.0/darayiban-android.apk"><Download size={18} /> دانلود اندروید با دستیار مالی</a>
+            <a className="primary-button install-button inline" href="https://drive.google.com/file/d/1hGgnOKkdoNPL3E4wzQtKaST30BMjc9xX/view?usp=drive_link"><Download size={18} /> دانلود اندروید با دستیار مالی</a>
             {promptEvent && !installed ? <button className="android-pwa-link" onClick={() => void install()} type="button">نصب نسخه PWA</button> : null}
           </div>
         </article>
