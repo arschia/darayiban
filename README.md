@@ -9,6 +9,7 @@
   <img src="https://img.shields.io/badge/React-19-61DAFB?logo=react&logoColor=111827" alt="React 19" />
   <img src="https://img.shields.io/badge/TypeScript-strict-3178C6?logo=typescript&logoColor=white" alt="TypeScript strict" />
   <img src="https://img.shields.io/badge/Supabase-PostgreSQL-3FCF8E?logo=supabase&logoColor=white" alt="Supabase PostgreSQL" />
+  <img src="https://img.shields.io/badge/AI-Google%20Gemini-8E75B2" alt="AI financial assistant powered by Google Gemini" />
   <img src="https://img.shields.io/badge/Android-Capacitor%20%2B%20Kotlin-3DDC84?logo=android&logoColor=white" alt="Android app with Capacitor and Kotlin" />
   <img src="https://img.shields.io/badge/PWA-iOS%20%26%20Desktop-5A0FC8?logo=pwa&logoColor=white" alt="PWA for iOS and desktop" />
   <img src="https://img.shields.io/badge/UI-فارسی%20%7C%20RTL-6366F1" alt="Persian RTL interface" />
@@ -16,6 +17,7 @@
 
 <p align="center">
   <a href="https://selfmali.vercel.app">نسخه زنده</a> ·
+  <a href="./docs/FINANCIAL_ASSISTANT.md">دستیار هوش مصنوعی</a> ·
   <a href="#راه‌اندازی-محلی">راه‌اندازی</a> ·
   <a href="./docs/ARCHITECTURE.md">معماری</a> ·
   <a href="#اتصال-iphone-shortcuts">اتوماسیون آیفون</a> ·
@@ -24,12 +26,13 @@
 
 یک اپ مالی فارسی و چندکاربره برای ثبت و تحلیل تراکنش‌ها، بودجه، بدهی‌ها، طلب‌ها و دارایی‌ها. دارایی‌بان به‌صورت PWA و اپ اندروید ارائه می‌شود؛ پیامک بانکی در آیفون از طریق Shortcuts و در اندروید مستقیماً داخل خود برنامه به تراکنش تبدیل می‌شود.
 
+دستیار هوش مصنوعی دارایی‌بان با **Google Gemini** به داده‌های مالی همان کاربر متصل است و برای تحلیل هزینه‌ها و برنامه‌ریزی مالی کمک می‌کند. کاربر می‌تواند در گفتگو، برچسب‌گذاری و ویرایش اطلاعات، ساخت بودجه یا هشدار عبور از سقف هزینه را درخواست کند.
+
 > رابط کاربری کاملاً راست‌چین است، مبالغ را به تومان نمایش می‌دهد و تاریخ‌ها را با تقویم شمسی نشان می‌دهد.
 
 ## امکانات اصلی
 
-- دستیار مالی با دسترسی به داده‌های همان کاربر، ویرایش و برچسب‌گذاری قابل بازگردانی، ساخت بودجه و هشدار هزینه. برای فعال‌سازی، [راهنمای دستیار](docs/FINANCIAL_ASSISTANT.md) و کلید API سمت سرور لازم است.
-
+- دستیار هوش مصنوعی Google Gemini با دسترسی به داده‌های همان کاربر، ویرایش و برچسب‌گذاری قابل بازگردانی، ساخت بودجه و هشدار هزینه
 - ثبت‌نام و ورود با ایمیل/رمز و Google OAuth
 - نگهداری نشست کاربر روی دستگاه و جداسازی داده‌ها با Row Level Security
 - ثبت دستی تراکنش و دریافت خودکار پیامک بانکی از iPhone Shortcuts یا اپ بومی Android
@@ -45,12 +48,32 @@
 - نصب به‌صورت PWA روی iOS و Android
 - طراحی واکنش‌گرا برای موبایل و دسکتاپ
 
+## دستیار هوش مصنوعی مالی
+
+در نسخه وب، پس از ورود از منوی **دستیار مالی** گفتگو را شروع کنید. دستیار از تراکنش‌ها، دارایی‌ها، موجودی بانک‌ها، بودجه‌ها، بدهی‌ها و طلب‌های حساب شما استفاده می‌کند. جمع هزینه و درآمد در دیتابیس محاسبه می‌شود تا به تعداد ردیف‌های نمایش‌داده‌شده در داشبورد محدود نباشد.
+
+| نمونه درخواست | قابلیت دستیار |
+|---|---|
+| «هزینه‌های این ماه من بیشتر مربوط به کدام دسته است؟» | تحلیل تراکنش‌های ثبت‌شده و کمک به برنامه‌ریزی هزینه |
+| «به تراکنش‌های تاکسی برچسب رفت‌وآمد اضافه کن» | خواندن و برچسب‌گذاری گروهی با حفظ برچسب‌های قبلی |
+| «برای رفت‌وآمد این ماه یک بودجه دو میلیون تومانی بساز» | ساخت بودجه پس از مشخص‌شدن بازه و برچسب مربوط |
+| «اگر هزینه امروز از یک میلیون تومان بیشتر شد، خبرم کن» | ذخیره هشدار و بررسی زمان‌بندی‌شده، حتی پس از بستن گفتگو |
+
+تغییرات دستیار در گفتگو گزارش می‌شوند و امکان بازگردانی دارند. اگر اطلاعات یک تراکنش مبهم باشد، دستیار باید از کاربر توضیح بخواهد. گفتگوها ذخیره می‌شوند و هر کاربر فقط به اطلاعات خودش دسترسی دارد.
+
+اتصال مدل از طریق API مستقیم Gemini و Supabase Edge Functions انجام می‌شود. کلید در Supabase Vault رمزگذاری شده و به مرورگر یا APK فرستاده نمی‌شود. متن گفتگو و داده مالی مورد نیاز برای پاسخ به Google ارسال می‌شود. هشدارها به Web Push موجود برنامه و مجوز اعلان دستگاه وابسته‌اند؛ این قابلیت اعلان پس‌زمینه بومی Android اضافه نمی‌کند.
+
+جزئیات مدل، راه‌اندازی روی محیط شخصی، محدودیت‌ها و آزمون‌ها در [راهنمای دستیار مالی](docs/FINANCIAL_ASSISTANT.md) آمده است.
+
 ## معماری
 
 ```mermaid
 flowchart TD
   UI["PWA فارسی روی Vercel"] --> AUTH["Supabase Auth"]
   UI --> DATA["Postgres + RLS"]
+  UI --> ASSISTANT["Edge Function: financial-assistant"]
+  ASSISTANT --> GEMINI["Google Gemini"]
+  ASSISTANT --> DATA
   IOS["پیامک بانکی آیفون"] --> SHORTCUT["Apple Shortcuts"]
   ANDROID["پیامک بانکی اندروید"] --> NATIVE["Kotlin + WorkManager"]
   SHORTCUT --> EDGE["Edge Function: ingest-sms"]
@@ -58,10 +81,14 @@ flowchart TD
   EDGE --> DATA
   EDGE --> PUSH["Web Push"]
   CRON["Supabase Cron"] --> PUSH
+  CRON --> ALERTS["assistant-spending-alerts"]
+  ALERTS --> DATA
+  ALERTS --> PUSH
 ```
 
 - **Frontend:** Next.js 16، React 19، TypeScript و CSS اختصاصی
 - **Backend:** Supabase Auth و Postgres
+- **AI Assistant:** Google Gemini، AI SDK و ابزارهای مالی با دسترسی محدود به حساب کاربر
 - **Automation:** Supabase Edge Function برای تحلیل پیامک، موجودی بانک و هشدار سقف هزینه
 - **Notifications:** Web Push استاندارد با VAPID و Supabase Cron برای گزارش روزانه
 - **Hosting:** Vercel با استقرار خودکار شاخه `main`
@@ -80,9 +107,13 @@ lib/android-sms.ts           پل TypeScript به قابلیت بومی پیام
 public/                      manifest، service worker، آیکن‌ها و تصویر اشتراک‌گذاری
 supabase/functions/ingest-sms تحلیل پیامک بانکی و ثبت امن تراکنش
 supabase/functions/send-daily-summary ارسال زمان‌بندی‌شده گزارش هزینه روز
+supabase/functions/financial-assistant گفتگو با Gemini، ابزارهای مالی و بازگردانی تغییرات
+supabase/functions/assistant-spending-alerts بررسی مستقل هشدارهای ساخته‌شده در گفتگو
 supabase/functions/_shared/push.ts ارسال امن Web Push و پاک‌سازی اشتراک منقضی
 supabase/migrations/         تاریخچه تغییرات دیتابیس و RLS
 docs/                        مستندات معماری و راه‌اندازی
+docs/FINANCIAL_ASSISTANT.md  راهنمای دستیار، تنظیم کلید و محدودیت‌های اعلان
+scripts/verify-gemini.mjs    آزمون اختیاری مدل واقعی با داده ساختگی
 .github/workflows/ci.yml     بررسی خودکار lint و build
 .github/workflows/android.yml ساخت و بررسی APK آزمایشی اندروید
 vercel.json                  تنظیمات استقرار Vercel
@@ -126,7 +157,8 @@ NEXT_PUBLIC_SITE_URL=http://localhost:3000
 | `npm run start:vercel` | اجرای build تولیدشده |
 | `npm run lint` | بررسی کیفیت کد |
 | `npm run typecheck` | بررسی کامل TypeScript |
-| `npm test` | اجرای lint، typecheck و build کامل |
+| `npm run test:assistant` | آزمون دستیار، جداسازی داده کاربران، ویرایش و هشدارها |
+| `npm test` | اجرای lint، typecheck، آزمون‌های دستیار و build کامل |
 | `npm run dev` | اجرای نسخه سازگار با OpenAI Sites/Vinext |
 | `npm run build` | ساخت نسخه OpenAI Sites/Vinext |
 
