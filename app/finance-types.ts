@@ -1,5 +1,6 @@
 export type ViewId =
   | "dashboard"
+  | "assistant"
   | "transactions"
   | "calendar"
   | "obligations"

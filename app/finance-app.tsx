@@ -46,6 +46,7 @@ import { smsEndpoint, supabase } from "../lib/supabase";
 import { AndroidSmsStatus, isNativeAndroidApp, SmsBridge } from "../lib/android-sms";
 import { base64UrlToUint8Array, VAPID_PUBLIC_KEY } from "../lib/push";
 import { NotificationView } from "./notification-view";
+import { AssistantView } from "./assistant-view";
 import {
   Asset,
   AutomationToken,
@@ -78,6 +79,7 @@ type ModalKind = "transaction" | "obligation" | "asset" | "budget" | "bank-balan
 
 const navItems: Array<{ id: ViewId; label: string; icon: typeof LayoutDashboard }> = [
   { id: "dashboard", label: "خانه", icon: LayoutDashboard },
+  { id: "assistant", label: "دستیار مالی", icon: Sparkles },
   { id: "transactions", label: "تراکنش‌ها", icon: ReceiptText },
   { id: "calendar", label: "تقویم مالی", icon: CalendarDays },
   { id: "obligations", label: "بدهی و طلب", icon: HandCoins },
@@ -716,6 +718,9 @@ export function FinanceApp({ session }: { session: Session }) {
   }, [userId]);
 
   useEffect(() => {
+    if (new URLSearchParams(window.location.search).has("assistant")) {
+      window.setTimeout(() => setActiveView("assistant"), 0);
+    }
     const timer = window.setTimeout(() => void loadData(), 0);
     return () => window.clearTimeout(timer);
   }, [loadData]);
@@ -1040,6 +1045,7 @@ export function FinanceApp({ session }: { session: Session }) {
         <header className="topbar"><button className="menu-button" onClick={() => setMenuOpen(true)} aria-label="باز کردن منو"><Menu /></button><div className="mobile-brand"><BrandMark /><strong>دارایی‌بان</strong></div><label className="search-box"><Search size={19} /><input value={search} onChange={(event) => setSearch(event.target.value)} onFocus={() => activeView !== "transactions" && setActiveView("transactions")} placeholder="جست‌وجو در تراکنش‌ها..." aria-label="جست‌وجو" /></label><button className="topbar-icon theme-toggle" onClick={toggleTheme} aria-label="تغییر حالت نمایش" title="تغییر حالت نمایش"><Moon className="theme-light-only" size={20} /><Sun className="theme-dark-only" size={20} /></button><button className="topbar-icon" onClick={() => openView("notifications")} aria-label="تنظیمات اعلان‌ها"><Bell size={20} />{(pushEnabled || obligations.some((item) => item.due_date && new Date(item.due_date) <= new Date())) && <i />}</button><button className="profile-chip" onClick={() => setModal("password")} type="button"><span>{name.slice(0, 1)}</span><div><strong>{name}</strong><small>تنظیم رمز ورود</small></div><LockKeyhole size={16} /></button></header>
         {notice && <div className="global-notice"><span>{notice}</span><button onClick={() => setNotice(null)} aria-label="بستن"><X size={17} /></button></div>}
         <div className="page-content">
+          {activeView === "assistant" && <AssistantView userId={userId} onChanged={() => loadData(true)} onNotifications={() => openView("notifications")} pushEnabled={pushEnabled} />}
           {activeView === "dashboard" && <DashboardView name={name} transactions={transactions} obligations={obligations} assets={assets} budgets={budgets} bankBalances={bankBalances} currency={currency} openModal={(kind) => kind === "transaction" ? openNewTransaction() : setModal(kind)} openView={openView} editTransaction={editTransaction} editBankBalance={editBankBalance} trashTransaction={(transaction) => void moveToTrash(transaction)} onRefresh={() => void refreshData()} refreshing={refreshing} showPasswordNudge={googleOnlyAccount && !passwordReady} openPassword={() => setModal("password")} />}
           {activeView === "transactions" && <TransactionsView transactions={transactions} currency={currency} search={search} setSearch={setSearch} openModal={openNewTransaction} onEdit={editTransaction} onTrash={(transaction) => void moveToTrash(transaction)} trashCount={trashTransactions.length} openTrash={() => openView("trash")} />}
           {activeView === "calendar" && <CalendarView transactions={transactions} obligations={obligations} currency={currency} onEdit={editTransaction} onTrash={(transaction) => void moveToTrash(transaction)} />}
