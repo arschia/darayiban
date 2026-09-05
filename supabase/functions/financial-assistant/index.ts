@@ -1,10 +1,6 @@
 import { createClient } from "npm:@supabase/supabase-js@2.112.3";
-import {
-  createGateway,
-  isStepCount,
-  type ModelMessage,
-  ToolLoopAgent,
-} from "npm:ai@7.0.93";
+import { createGoogle } from "npm:@ai-sdk/google@4.0.64";
+import { isStepCount, type ModelMessage, ToolLoopAgent } from "npm:ai@7.0.93";
 import { z } from "npm:zod@4.4.3";
 import { createFinanceTools } from "./tools.ts";
 import { localContext, MODEL, publicError } from "./core.ts";
@@ -70,12 +66,22 @@ export async function handler(request: Request): Promise<Response> {
   if (!body || typeof body !== "object") {
     return json({ error: "invalid_request" }, 400);
   }
-  const key = Deno.env.get("AI_GATEWAY_API_KEY");
+  const adminKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
+  const admin = adminKey
+    ? createClient(url, adminKey, {
+      auth: { persistSession: false, autoRefreshToken: false },
+    })
+    : null;
+  let key = Deno.env.get("GOOGLE_GENERATIVE_AI_API_KEY");
+  if (!key && admin) {
+    const secret = await admin.rpc("assistant_model_credentials");
+    if (!secret.error && typeof secret.data === "string") key = secret.data;
+  }
   const model = Deno.env.get("AI_MODEL") || MODEL;
   if (body.operation === "status") {
     return json({
       configured: Boolean(key),
-      provider: "Vercel AI Gateway",
+      provider: "Google Gemini",
       model,
     });
   }
@@ -99,16 +105,13 @@ export async function handler(request: Request): Promise<Response> {
       message: "متن درخواست باید بین ۱ تا ۴۰۰۰ کاراکتر باشد.",
     }, 400);
   }
-  if (!key) {
+  if (!key || !admin) {
     return json({
       error: "not_configured",
       message: "اتصال سرویس هوش مصنوعی هنوز توسط مدیر برنامه فعال نشده.",
     }, 503);
   }
   const { requestId, conversationId, prompt } = parsed.data;
-  const admin = createClient(url, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!, {
-    auth: { persistSession: false, autoRefreshToken: false },
-  });
   const { data: started, error: startError } = await admin.rpc(
     "assistant_start_run",
     {
@@ -149,7 +152,14 @@ export async function handler(request: Request): Promise<Response> {
     messages.push({ role: "user", content: prompt });
     let inputTokens = 0, outputTokens = 0;
     const agent = new ToolLoopAgent({
-      model: createGateway({ apiKey: key })(model),
+      model: createGoogle({ apiKey: key })(model),
+      ...(model.startsWith("gemini-3")
+        ? {
+          providerOptions: {
+            google: { thinkingConfig: { thinkingLevel: "low" } },
+          },
+        }
+        : {}),
       instructions:
         `تو دستیار مالی دارایی‌بان هستی. فارسی طبیعی و روشن بنویس. زمان قابل اعتماد سرور: ${
           JSON.stringify(localContext())
@@ -183,11 +193,11 @@ export async function handler(request: Request): Promise<Response> {
     const answer = result.text ||
       "بررسی این مرحله تمام شد. تغییرات انجام‌شده را در پایین ببین؛ برای ادامه یک پیام دیگر بفرست.";
     const inputPrice = Number(
-      Deno.env.get("AI_INPUT_USD_PER_MILLION") ?? (model === MODEL ? 0.3 : NaN),
+      Deno.env.get("AI_INPUT_USD_PER_MILLION") ?? NaN,
     );
     const outputPrice = Number(
       Deno.env.get("AI_OUTPUT_USD_PER_MILLION") ??
-        (model === MODEL ? 2.5 : NaN),
+        NaN,
     );
     const estimatedCost = inputPrice > 0 && outputPrice > 0
       ? (inputTokens * inputPrice + outputTokens * outputPrice) / 1e6

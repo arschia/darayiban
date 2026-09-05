@@ -129,6 +129,10 @@ Deno.test("tool reads are scoped, card columns excluded, units normalized", asyn
     (result as { records: Record<string, unknown>[] }).records[0].amount_toman,
     500000,
   );
+  assert.equal(
+    (result as { records: Record<string, unknown>[] }).records[0].id,
+    recordId,
+  );
 });
 Deno.test("edits require a read and preserve optimistic concurrency context", async () => {
   calls.length = 0;
@@ -186,7 +190,7 @@ Deno.test("unapproved fields cannot cross the tool boundary", async () => {
   await assert.rejects(async () =>
     await tools.edit_financial_records.execute!({
       entity: "transactions",
-      changes: [{ id: recordId, patch: { user_id: "another-user" } }],
+      changes: [{ id: recordId, patch: { user_id: "another-user" } as never }],
       summary: "bad",
     }, options)
   );
@@ -213,12 +217,25 @@ Deno.test("HTTP endpoint rejects unauthenticated callers without database access
 });
 Deno.test("valid session sees unavailable model; forged user_id is rejected", async () => {
   const originalFetch = globalThis.fetch;
-  const keys = ["SUPABASE_URL", "SUPABASE_ANON_KEY", "AI_GATEWAY_API_KEY"];
+  const keys = [
+    "SUPABASE_URL",
+    "SUPABASE_ANON_KEY",
+    "SUPABASE_SERVICE_ROLE_KEY",
+    "GOOGLE_GENERATIVE_AI_API_KEY",
+  ];
   const old = keys.map((key) => Deno.env.get(key));
   Deno.env.set("SUPABASE_URL", "https://test.supabase.co");
   Deno.env.set("SUPABASE_ANON_KEY", "test-key");
-  Deno.env.delete("AI_GATEWAY_API_KEY");
-  globalThis.fetch = async (input) => {
+  Deno.env.set("SUPABASE_SERVICE_ROLE_KEY", "server-test-key");
+  Deno.env.delete("GOOGLE_GENERATIVE_AI_API_KEY");
+  let storedKey: string | null = null;
+  globalThis.fetch = async (input, init) => {
+    if (String(input).includes("/rest/v1/rpc/assistant_model_credentials")) {
+      assert.equal(new Headers(init?.headers).get("apikey"), "server-test-key");
+      return new Response(JSON.stringify(storedKey), {
+        headers: { "Content-Type": "application/json" },
+      });
+    }
     assert.match(String(input), /\/auth\/v1\/user/);
     return new Response(
       JSON.stringify({
@@ -253,6 +270,12 @@ Deno.test("valid session sees unavailable model; forged user_id is rejected", as
       (await handler(request({ ...valid, user_id: "forged" }))).status,
       400,
     );
+    storedKey = "server-only-gemini-secret";
+    const configured = await handler(request({ operation: "status" }));
+    const publicStatus = await configured.text();
+    assert.equal(JSON.parse(publicStatus).configured, true);
+    assert.equal(JSON.parse(publicStatus).provider, "Google Gemini");
+    assert.ok(!publicStatus.includes(storedKey));
   } finally {
     globalThis.fetch = originalFetch;
     keys.forEach((key, index) =>

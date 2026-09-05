@@ -86,6 +86,16 @@ const patches = {
   }).strict(),
 };
 type MutableEntity = keyof typeof patches;
+// Gemini requires concrete property schemas. Entity-specific validation below
+// still rejects fields that do not belong to the selected record type.
+const editPatch = z.object({
+  ...patches.transactions.shape,
+  ...patches.assets.shape,
+  ...patches.budgets.shape,
+  ...patches.obligations.shape,
+  ...patches.bank_balances.shape,
+  ...patches.budget_targets.shape,
+}).partial().strict();
 const mutable = z.enum([
   "transactions",
   "assets",
@@ -207,7 +217,7 @@ export function createFinanceTools(
       inputSchema: z.object({
         entity: mutable,
         changes: z.array(
-          z.object({ id: z.uuid(), patch: z.record(z.string(), z.unknown()) })
+          z.object({ id: z.uuid(), patch: editPatch })
             .strict(),
         ).min(1).max(25),
         summary: z.string().min(1).max(300),

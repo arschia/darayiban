@@ -36,6 +36,49 @@ test("money conversion and Tehran midnight stay consistent", () => {
   );
 });
 
+test("Gemini credentials can only be resolved by the server role", async () => {
+  const db = new PGlite();
+  try {
+    await db.exec(
+      await readFile(
+        new URL("./fixtures/finance-schema.sql", import.meta.url),
+        "utf8",
+      ),
+    );
+    await db.exec(
+      "create schema vault; create table vault.decrypted_secrets(name text, decrypted_secret text); insert into vault.decrypted_secrets values ('unrelated','do-not-read'),('darayiban_gemini_api_key','test-only-secret');",
+    );
+    await db.exec(
+      await readFile(
+        new URL(
+          "../supabase/migrations/20260905132518_assistant_gemini_credentials.sql",
+          import.meta.url,
+        ),
+        "utf8",
+      ),
+    );
+    for (const role of ["anon", "authenticated"]) {
+      await db.exec(`set role ${role}`);
+      await assert.rejects(
+        db.query("select public.assistant_model_credentials()"),
+        /permission denied/,
+      );
+      await assert.rejects(
+        db.query("select * from vault.decrypted_secrets"),
+        /permission denied/,
+      );
+      await db.exec("reset role");
+    }
+    await db.exec("set role service_role");
+    const { rows } = await db.query(
+      "select public.assistant_model_credentials() as secret",
+    );
+    assert.equal(rows[0].secret, "test-only-secret");
+  } finally {
+    await db.close();
+  }
+});
+
 test("PostgreSQL assistant ownership, mutations, idempotency and alerts", async (t) => {
   const db = new PGlite();
   try {

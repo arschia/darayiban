@@ -1,4 +1,4 @@
-export const MODEL = "google/gemini-3.5-flash-lite";
+export const MODEL = "gemini-3.8-flash";
 export const MAX_PROMPT = 4000;
 export function toRial(value: unknown): number {
   if (
@@ -49,7 +49,14 @@ export function safeData(value: unknown): unknown {
   if (Array.isArray(value)) return value.map(safeData);
   if (value && typeof value === "object") {
     return Object.fromEntries(
-      Object.entries(value).map(([key, item]) => [key, safeData(item)]),
+      Object.entries(value).map(([key, item]) => [
+        key,
+        key === "id" && typeof item === "string" &&
+          /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
+            .test(item)
+          ? item
+          : safeData(item),
+      ]),
     );
   }
   return value;
