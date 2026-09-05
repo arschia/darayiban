@@ -36,5 +36,5 @@ export default function Home() {
 
   if (loading) return <SplashScreen />;
   if (!session) return <AuthScreen />;
-  return <FinanceApp session={session} />;
+  return <FinanceApp key={session.user.id} session={session} />;
 }

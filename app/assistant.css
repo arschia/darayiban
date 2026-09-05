@@ -1,0 +1,328 @@
+.assistant-page {
+  color: var(--ink);
+  max-width: 1440px;
+  margin: auto;
+}
+.assistant-heading {
+  display: flex;
+  gap: 24px;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 24px;
+}
+.assistant-eyebrow {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  color: var(--primary);
+  font-size: .95rem;
+}
+.assistant-heading h1 {
+  font-size: clamp(1.5rem, 3vw, 2rem);
+  margin: 12px 0;
+  font-weight: 750;
+}
+.assistant-heading p,
+.assistant-info p {
+  line-height: 1.9;
+  font-size: 1rem;
+}
+.assistant-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 290px;
+  gap: 24px;
+  align-items: start;
+}
+.assistant-chat,
+.assistant-info {
+  border: 1px solid var(--border);
+  border-radius: 22px;
+  background: var(--surface);
+}
+.assistant-chat {
+  min-width: 0;
+  overflow: hidden;
+}
+.assistant-toolbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 16px;
+  padding: 16px 20px;
+  border-bottom: 1px solid var(--border);
+  font-size: .875rem;
+}
+.assistant-toolbar label {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+}
+.assistant-toolbar select {
+  max-width: 210px;
+  min-width: 0;
+  padding: 8px;
+  border-radius: 10px;
+  color: var(--ink);
+  background: var(--canvas);
+  border: 1px solid var(--border);
+}
+.assistant-toolbar button,
+.assistant-rule button {
+  color: var(--primary);
+  font-size: .875rem;
+  cursor: pointer;
+}
+.assistant-messages {
+  height: min(58vh, 680px);
+  min-height: 300px;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding: 24px;
+}
+.assistant-welcome {
+  display: flex;
+  align-items: center;
+  flex-direction: column;
+  gap: 12px;
+  text-align: center;
+  padding: 20px 0;
+}
+.assistant-welcome > svg {
+  color: var(--primary);
+}
+.assistant-welcome h2 {
+  font-size: 1.35rem;
+  font-weight: 700;
+}
+.assistant-welcome p {
+  font-size: 1rem;
+  line-height: 1.8;
+  max-width: 430px;
+}
+.assistant-examples {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-top: 16px;
+  width: 100%;
+  max-width: 500px;
+}
+.assistant-examples button {
+  text-align: right;
+  font-size: .95rem;
+  line-height: 1.9;
+  padding: 12px 16px;
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  cursor: pointer;
+  background: var(--canvas);
+}
+.assistant-examples button:hover {
+  border-color: var(--primary);
+}
+.assistant-exchange {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  margin-bottom: 28px;
+}
+.assistant-bubble {
+  border-radius: 18px;
+  padding: 16px;
+  max-width: 95%;
+  font-size: 1rem;
+  line-height: 2;
+  overflow-wrap: anywhere;
+}
+.assistant-bubble > span {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: .875rem;
+  font-weight: 700;
+  margin-bottom: 6px;
+}
+.assistant-bubble p {
+  white-space: pre-wrap;
+}
+.assistant-bubble small {
+  font-size: .8rem;
+  color: var(--muted);
+  display: block;
+  margin-top: 10px;
+}
+.assistant-user {
+  background: var(--primary-soft);
+  align-self: flex-start;
+}
+.assistant-reply {
+  background: var(--canvas);
+  align-self: flex-end;
+  width: 95%;
+}
+.assistant-receipt {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  border-top: 1px solid var(--border);
+  margin-top: 12px;
+  padding-top: 12px;
+  font-size: .875rem;
+}
+.assistant-receipt > svg {
+  color: var(--green);
+  flex-shrink: 0;
+}
+.assistant-receipt button {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  color: var(--primary);
+  margin-inline-start: auto;
+  cursor: pointer;
+}
+.assistant-composer {
+  border-top: 1px solid var(--border);
+  padding: 18px;
+}
+.assistant-input-label {
+  display: block;
+  font-size: .875rem;
+  margin-bottom: 8px;
+}
+.assistant-composer textarea {
+  resize: vertical;
+  min-height: 85px;
+  width: 100%;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--canvas);
+  color: var(--ink);
+  padding: 12px;
+  font: inherit;
+  font-size: 1rem;
+  line-height: 1.9;
+}
+.assistant-composer > div {
+  display: flex;
+  gap: 16px;
+  align-items: center;
+  margin-top: 12px;
+}
+.assistant-composer small {
+  color: var(--muted);
+  font-size: .8rem;
+  line-height: 1.8;
+}
+.assistant-composer .primary-button {
+  flex-shrink: 0;
+  margin-inline-start: auto;
+}
+.assistant-page button:disabled {
+  opacity: .55;
+  cursor: default;
+}
+.assistant-page button:focus-visible,
+.assistant-page select:focus-visible,
+.assistant-page textarea:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: 3px;
+}
+.assistant-aside {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+.assistant-info {
+  padding: 22px;
+}
+.assistant-info h2 {
+  font-size: 1rem;
+  font-weight: 750;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+.assistant-info p + p {
+  margin-top: 12px;
+  color: var(--muted);
+  font-size: .875rem;
+}
+.assistant-info .secondary-button {
+  margin: 12px 0;
+  width: 100%;
+}
+.assistant-rule {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  border-top: 1px solid var(--border);
+  margin-top: 18px;
+  padding-top: 18px;
+  font-size: .875rem;
+  line-height: 1.8;
+}
+.assistant-rule small {
+  color: var(--muted);
+  font-size: .8rem;
+}
+.assistant-muted {
+  color: var(--muted);
+}
+.assistant-error,
+.assistant-setup {
+  font-size: .95rem;
+  line-height: 1.9;
+  padding: 14px 20px;
+  border-top: 1px solid var(--border);
+}
+.assistant-error {
+  background: var(--coral-soft);
+  color: var(--ink);
+}
+.assistant-setup {
+  background: var(--primary-soft);
+}
+@media (max-width: 1100px) {
+  .assistant-layout {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .assistant-aside {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+  }
+}
+@media (max-width: 600px) {
+  .assistant-heading {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 12px;
+  }
+  .assistant-messages {
+    padding: 14px;
+    height: 55vh;
+  }
+  .assistant-aside {
+    display: flex;
+  }
+  .assistant-toolbar {
+    padding: 12px;
+    gap: 8px;
+    flex-wrap: wrap;
+  }
+  .assistant-toolbar select {
+    max-width: 170px;
+  }
+  .assistant-composer {
+    padding: 12px;
+  }
+  .assistant-bubble {
+    max-width: 100%;
+  }
+  .assistant-heading > button {
+    align-self: flex-end;
+  }
+}

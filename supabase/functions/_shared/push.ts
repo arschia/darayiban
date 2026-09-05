@@ -27,7 +27,7 @@ export async function sendPushToUser(
 ): Promise<PushResult> {
   const [{ data: config, error: configError }, { data: subscriptions, error: subscriptionError }] =
     await Promise.all([
-      db.rpc("get_push_config").single(),
+      db.rpc("get_push_config").single<{ public_key: string; private_key: string; subject: string }>(),
       db
         .from("push_subscriptions")
         .select("id,endpoint,p256dh,auth")
