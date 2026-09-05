@@ -1,6 +1,7 @@
 "use client";
 
 import type { Session } from "@supabase/supabase-js";
+import { App } from "@capacitor/app";
 import {
   ArrowDownLeft,
   ArrowLeft,
@@ -461,17 +462,26 @@ function AcademyView({ tokens, userId, refreshTokens }: { tokens: AutomationToke
 
   useEffect(() => {
     const isAndroid = isNativeAndroidApp();
-    if (isAndroid) {
+    if (!isAndroid) return;
+    let alive = true;
+    const update = () => {
+      if (document.hidden) return;
       void SmsBridge.getStatus()
         .then((status) => {
+          if (!alive) return;
           setNativeAndroid(true);
           setAndroidStatus(status);
         })
         .catch(() => {
+          if (!alive) return;
           setNativeAndroid(true);
           setAndroidMessage({ type: "error", text: "وضعیت دریافت پیامک خوانده نشد. برنامه را دوباره باز کن." });
         });
-    }
+    };
+    update();
+    const timer = window.setInterval(update, 5000);
+    document.addEventListener("visibilitychange", update);
+    return () => { alive = false; window.clearInterval(timer); document.removeEventListener("visibilitychange", update); };
   }, []);
 
   async function copy(value: string, key: string) {
@@ -509,6 +519,7 @@ function AcademyView({ tokens, userId, refreshTokens }: { tokens: AutomationToke
     setBusy(true);
     setAndroidMessage(null);
     let createdTokenId: string | null = null;
+    let configured = false;
     try {
       const permission = await SmsBridge.requestPermission();
       setAndroidStatus(permission);
@@ -518,12 +529,13 @@ function AcademyView({ tokens, userId, refreshTokens }: { tokens: AutomationToke
       }
       const created = await createToken("Android SMS");
       createdTokenId = created.id;
-      const status = await SmsBridge.configure({ token: created.token, endpoint: smsEndpoint, tokenId: created.id });
+      const status = await SmsBridge.configure({ token: created.token, endpoint: smsEndpoint, tokenId: created.id, userId });
+      configured = true;
       setAndroidStatus(status);
       await refreshTokens();
-      setAndroidMessage({ type: "success", text: "ثبت خودکار پیامک‌های بانکی فعال شد؛ از این به بعد کار دیگری لازم نیست." });
+      setAndroidMessage({ type: "success", text: "اتصال به حسابت تأیید شد. پیامک‌های بانکی تازه به‌صورت خودکار بررسی و ثبت می‌شوند." });
     } catch {
-      if (createdTokenId) {
+      if (createdTokenId && !configured) {
         await supabase.from("automation_tokens").update({ revoked_at: new Date().toISOString() }).eq("id", createdTokenId).eq("user_id", userId);
       }
       setAndroidMessage({ type: "error", text: "فعال‌سازی کامل نشد. اتصال اینترنت را بررسی و دوباره تلاش کن." });
@@ -531,6 +543,31 @@ function AcademyView({ tokens, userId, refreshTokens }: { tokens: AutomationToke
       setBusy(false);
     }
   }
+
+  async function checkAndroidConnection() {
+    setBusy(true);
+    try {
+      const result = await SmsBridge.checkConnection();
+      setAndroidMessage(result.connected
+        ? { type: "success", text: "ارتباط گوشی با حساب برقرار است. برای این بررسی تراکنشی ساخته نشد." }
+        : { type: "error", text: "ارتباط تأیید نشد. اینترنت را بررسی کن و در صورت نیاز اتصال را دوباره فعال کن." });
+    } catch {
+      setAndroidMessage({ type: "error", text: "بررسی اتصال انجام نشد. اپ را به نسخه جدید به‌روز کن." });
+    } finally { setBusy(false); }
+  }
+
+  const smsActive = androidStatus?.configured && androidStatus.permission === "granted" && androidStatus.userId === userId;
+  const smsResultText: Record<string, string> = {
+    queued: "پیامک برای ارسال در صف است.",
+    uploaded: "تراکنش با موفقیت ثبت شد.",
+    duplicate: "این پیامک قبلاً ثبت شده است.",
+    retry: "ارسال کامل نشد و خودکار دوباره تلاش می‌شود. اتصال اینترنت را بررسی کن.",
+    reconnect: "اتصال به حساب معتبر نیست. آن را دوباره فعال کن.",
+    unrecognized: "متن آخرین پیامک شناخته نشد و تراکنشی برای آن ساخته نشد. متن پیامک را برای بررسی بفرست یا تراکنش را دستی ثبت کن.",
+    filtered: "آخرین پیامک، الگوی تراکنش بانکی نداشت یا پیام امنیتی بود.",
+    queue_error: "پیامک دریافت شد اما در صف قرار نگرفت. این تراکنش را دستی بررسی کن.",
+    failed: "ثبت آخرین پیامک انجام نشد. این تراکنش را دستی بررسی کن.",
+  };
 
   async function disableAndroidSms() {
     setBusy(true);
@@ -555,14 +592,21 @@ function AcademyView({ tokens, userId, refreshTokens }: { tokens: AutomationToke
     <section className="data-view academy-view">
       <ViewHeader kicker="راهنمای شروع" title={nativeAndroid ? "اتصال پیامک اندروید" : "آموزش و اتومیشن آیفون"} text={nativeAndroid ? "فقط یک‌بار اجازه پیامک را بده؛ بقیه کارها خودکار انجام می‌شود." : "پیامک بانکی را با Shortcuts به endpoint امن خودت بفرست."} />
       {nativeAndroid ? <article className="panel android-sms-setup">
-        <div className={`android-sms-icon ${androidStatus?.configured ? "active" : ""}`}><Smartphone size={30} /></div>
+        <div className={`android-sms-icon ${smsActive ? "active" : ""}`}><Smartphone size={30} /></div>
         <div className="android-sms-copy">
-          <span>{androidStatus?.configured ? "فعال روی این گوشی" : "راه‌اندازی یک‌مرحله‌ای"}</span>
-          <h2>{androidStatus?.configured ? "پیامک‌های بانکی خودکار ثبت می‌شوند" : "ثبت خودکار را فعال کن"}</h2>
+          <span>{smsActive ? "فعال روی این گوشی" : "نیاز به فعال‌سازی"}</span>
+          <h2>{smsActive ? "دریافت خودکار پیامک فعال است" : "ثبت خودکار را فعال کن"}</h2>
           <p>دارایی‌بان فقط پیامک‌هایی را که الگوی تراکنش بانکی دارند پردازش می‌کند. اگر اینترنت قطع باشد، پیامک در صف امن گوشی می‌ماند و بعداً ارسال می‌شود.</p>
           <div className="android-sms-points"><span><Check size={15} /> بدون نصب برنامه جانبی</span><span><Check size={15} /> سازگار با اندروید ۷ به بالا</span><span><Check size={15} /> توکن رمزگذاری‌شده روی گوشی</span></div>
           {androidMessage && <div className={`auth-message ${androidMessage.type}`} role="status">{androidMessage.text}</div>}
-          {androidStatus?.configured
+          {androidStatus?.lastReceivedAt ? <p>آخرین پیامک دریافتی: {dateTime(new Date(androidStatus.lastReceivedAt).toISOString())}</p> : <p>هنوز دریافت پیامکی در این نسخه ثبت نشده است. فقط پیامک‌های بعد از فعال‌سازی بررسی می‌شوند.</p>}
+          {androidStatus?.lastUploadedAt ? <p>آخرین ثبت موفق: {dateTime(new Date(androidStatus.lastUploadedAt).toISOString())}</p> : null}
+          {androidStatus?.lastResult && <p role="status">{smsResultText[androidStatus.lastResult]}</p>}
+          {Boolean(androidStatus?.pendingCount) && <p>{androidStatus!.pendingCount!.toLocaleString("fa-IR")} پیامک در انتظار ارسال</p>}
+          {Boolean(androidStatus?.failedCount) && <p>{androidStatus!.failedCount!.toLocaleString("fa-IR")} پیامک ثبت نشده است. تراکنش‌های مربوط را بررسی کن.</p>}
+          {smsActive && <button className="secondary-button" onClick={() => void checkAndroidConnection()} disabled={busy} type="button">بررسی اتصال</button>}
+          {smsActive && androidStatus?.lastResult === "reconnect" && <button className="primary-button" onClick={() => void activateAndroidSms()} disabled={busy} type="button">اتصال دوباره به حساب</button>}
+          {smsActive
             ? <button className="secondary-danger-button" onClick={() => void disableAndroidSms()} disabled={busy} type="button"><X size={17} />{busy ? "کمی صبر کن..." : "غیرفعال‌کردن در این گوشی"}</button>
             : <button className="primary-button" onClick={() => void activateAndroidSms()} disabled={busy} type="button"><ShieldCheck size={18} />{busy ? "در حال فعال‌سازی..." : "فعال‌کردن ثبت خودکار"}</button>}
         </div>
@@ -724,6 +768,48 @@ export function FinanceApp({ session }: { session: Session }) {
     const timer = window.setTimeout(() => void loadData(), 0);
     return () => window.clearTimeout(timer);
   }, [loadData]);
+
+  useEffect(() => {
+    let alive = true;
+    let running = false;
+    let nativeActive = true;
+    let listener: { remove(): Promise<void> } | undefined;
+    async function syncTransactions() {
+      if (!alive || running || document.hidden || !nativeActive || !navigator.onLine) return;
+      running = true;
+      try {
+        const [rows, balances] = await Promise.all([
+          supabase.from("transactions").select("id,type,amount,description,from_card,to_card,transaction_time,category,tags,bank_name,source,currency,deleted_at,updated_at").eq("user_id", userId).is("deleted_at", null).order("transaction_time", { ascending: false }).limit(250),
+          supabase.from("bank_balances").select("id,bank_name,account_hint,balance,currency,reported_at,updated_at").eq("user_id", userId).order("updated_at", { ascending: false }),
+        ]);
+        if (!alive) return;
+        if (!rows.error) setTransactions(((rows.data ?? []) as Transaction[]).map((item) => ({ ...item, amount: tomanValue(item.amount, item.currency ?? "IRR"), currency: "IRT" })));
+        if (!balances.error) setBankBalances(((balances.data ?? []) as BankBalance[]).map((item) => ({ ...item, balance: tomanValue(item.balance, item.currency), currency: "IRT" })));
+      } finally { running = false; }
+    }
+    const refresh = () => { void syncTransactions(); };
+    const timer = window.setInterval(refresh, 15000);
+    window.addEventListener("focus", refresh);
+    window.addEventListener("online", refresh);
+    document.addEventListener("visibilitychange", refresh);
+    if (isNativeAndroidApp()) {
+      void SmsBridge.getStatus().then(async (status) => {
+        if (alive && status.userId && status.userId !== userId) await SmsBridge.disable();
+      }).catch(() => {});
+      void App.addListener("appStateChange", ({ isActive }) => {
+        nativeActive = isActive;
+        if (isActive) refresh();
+      }).then((handle) => { if (alive) listener = handle; else void handle.remove(); });
+    }
+    return () => {
+      alive = false;
+      window.clearInterval(timer);
+      window.removeEventListener("focus", refresh);
+      window.removeEventListener("online", refresh);
+      document.removeEventListener("visibilitychange", refresh);
+      void listener?.remove();
+    };
+  }, [userId]);
 
   useEffect(() => {
     let cancelled = false;
