@@ -66,7 +66,7 @@ internal object BankSmsClassifier {
         val normalized = body.lowercase().replace('ي', 'ی').replace('ك', 'ک')
             .replace('\u200c', ' ').replace('\u00a0', ' ')
             .replace(Regex("[\u200e\u200f\u202a-\u202e]"), "").replace('−', '-')
-        if (Regex("رمز\\s*(پویا|یک\\s*بار|دوم)|کد\\s*(ورود|فعال|تأیید|تایید)|\\botp\\b").containsMatchIn(normalized)) return false
+        if (Regex("رمز|کد\\s*(ورود|فعال|تأیید|تایید)|\\botp\\b").containsMatchIn(normalized)) return false
         val transactionTerms = listOf(
             "برداشت", "واریز", "واريز", "خرید", "خريد", "مانده", "موجودی",
             "موجودي", "انتقال وجه", "کارت به کارت", "بدهکار", "بستانکار", "پرداخت", "کسر", "دریافت",

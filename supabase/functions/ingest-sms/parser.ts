@@ -94,7 +94,7 @@ export function detectBank(text: string, provided?: string) {
 
 export function parseMessage(raw: string, deviceTime?: string, providedBank?: string) {
   const text = normalizeDigits(raw).replace(/[\u200c\u200d\u00a0]/g, " ").replace(/[\u200e\u200f\u202a-\u202e]/g, "").replace(/\u2212/g, "-");
-  if (/رمز\s*(?:پویا|یک\s*بار|دوم)|کد\s*(?:ورود|فعال|تأیید|تایید)|\bOTP\b/i.test(text)) {
+  if (/رمز|کد\s*(?:ورود|فعال|تأیید|تایید)|\bOTP\b/i.test(text)) {
     return { ignored: true, reason: "security_message" } as const;
   }
   // Only an amount on its own line can imply direction; card/account numbers cannot.

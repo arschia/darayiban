@@ -44,5 +44,6 @@ class BankSmsClassifierTest {
     fun securityMessagesStayExcludedEvenWithWithdrawalAndBalance() {
         assertFalse(BankSmsClassifier.looksLikeTransaction("رمز یک‌بار مصرف برداشت 123456 مبلغ 20000 مانده 90000"))
         assertFalse(BankSmsClassifier.looksLikeTransaction("رمز پويا برداشت 654321 مانده 100000"))
+        assertFalse(BankSmsClassifier.looksLikeTransaction("رمز خرید 123456 برای پرداخت 50000 ریال"))
     }
 }
