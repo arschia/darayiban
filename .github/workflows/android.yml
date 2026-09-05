@@ -101,7 +101,7 @@ jobs:
       contents: write
     env:
       GH_TOKEN: ${{ github.token }}
-      RELEASE_TAG: android-v1.1.0
+      RELEASE_TAG: android-v1.1.1
     steps:
       - name: Checkout release notes
         uses: actions/checkout@v4
@@ -122,5 +122,5 @@ jobs:
           fi
           gh release create "$RELEASE_TAG" release-apk/darayiban-android.apk release-apk/darayiban-android.apk.sha256 \
             --repo "$GITHUB_REPOSITORY" --target "$GITHUB_SHA" \
-            --title "دارایی‌بان اندروید ۱.۱.۰ با دستیار Gemini" \
-            --notes-file docs/ANDROID_1.1.0.md
+            --title "دارایی‌بان اندروید ۱.۱.۱؛ اصلاح ثبت خودکار پیامک" \
+            --notes-file docs/ANDROID_1.1.1.md

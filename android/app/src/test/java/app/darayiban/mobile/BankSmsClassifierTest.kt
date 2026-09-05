@@ -32,4 +32,17 @@ class BankSmsClassifierTest {
     fun ignoresOrdinaryMessages() {
         assertFalse(BankSmsClassifier.looksLikeTransaction("جلسه امروز ساعت 18 برگزار می‌شود."))
     }
+
+    @Test
+    fun acceptsDebitAndPaymentVariants() {
+        assertTrue(BankSmsClassifier.looksLikeTransaction("بانك سامان بدهكار: ۱۰۰۰۰ ریال"))
+        assertTrue(BankSmsClassifier.looksLikeTransaction("پرداخت: ۱۰۰۰۰ ریال"))
+        assertTrue(BankSmsClassifier.looksLikeTransaction("بانک سامان\n-۵۰٬۰۰۰\nمانده ۱۰۰٬۰۰۰"))
+    }
+
+    @Test
+    fun securityMessagesStayExcludedEvenWithWithdrawalAndBalance() {
+        assertFalse(BankSmsClassifier.looksLikeTransaction("رمز یک‌بار مصرف برداشت 123456 مبلغ 20000 مانده 90000"))
+        assertFalse(BankSmsClassifier.looksLikeTransaction("رمز پويا برداشت 654321 مانده 100000"))
+    }
 }
