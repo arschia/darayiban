@@ -80,6 +80,8 @@ function parseBankTime(text: string, fallback?: string) {
 }
 
 function cardHint(text: string, keyword: "از" | "به") {
+  const transfer = text.match(/(?:^|\n)(?:انتقال(?:\s+وجه)?\s+)?از\s+([0-9*Xx-]{4,24})\s+به\s+([0-9*Xx-]{4,24})(?=\s|$)/);
+  if (transfer) return keyword === "از" ? transfer[1] : transfer[2];
   const line = text.match(new RegExp(`(?:^|\\n)${keyword}\\s+([^\\n]+)`, "m"));
   if (line?.[1]) return line[1].trim().slice(0, 80);
   const card = text.match(/(?:کارت|حساب)\s*(?:شماره)?\s*[:：-]?\s*([0-9*Xx-]{4,24})/i);
@@ -97,11 +99,17 @@ export function parseMessage(raw: string, deviceTime?: string, providedBank?: st
   if (/رمز|کد\s*(?:ورود|فعال|تأیید|تایید)|\bOTP\b/i.test(text)) {
     return { ignored: true, reason: "security_message" } as const;
   }
-  // Only an amount on its own line can imply direction; card/account numbers cannot.
-  const signed = text.match(/(?:^|\n)\s*([+-])\s*([0-9][0-9,،]*)\s*(ریال|تومان)?\s*(?=\n|$)/);
+  // Banks put the sign before or after an amount, sometimes on a labelled line.
+  // Anchor to the entire line so signs on accounts, dates or balances cannot imply direction.
+  const signedAmounts = text.split(/\r?\n/).flatMap((line) => {
+    const match = line.trim().match(/^(?:مبلغ[ \t]*[:：]?[ \t]*)?(?:([+-])[ \t]*([0-9][0-9,،]*)|([0-9][0-9,،]*)[ \t]*([+-]))[ \t]*(ریال|تومان)?$/);
+    return match ? [{ sign: match[1] ?? match[4], value: match[2] ?? match[3], unit: match[5] }] : [];
+  });
+  if (signedAmounts.length > 1) return { ignored: true, reason: "ambiguous_amount" } as const;
+  const signed = signedAmounts[0];
   const bankContext = /بانک|مانده|موجودی/.test(text);
-  const expense = /برداشت|خرید|کسر|پرداخت|بدهکار|انتقال\s+وجه\s+از/.test(text) || Boolean(signed?.[1] === "-" && bankContext);
-  const income = /واریز|افزایش موجودی|دریافت|بستانکار|انتقال\s+وجه\s+به/.test(text) || Boolean(signed?.[1] === "+" && bankContext);
+  const expense = /برداشت|خرید|کسر|پرداخت|بدهکار|انتقال\s+وجه\s+از/.test(text) || Boolean(signed?.sign === "-" && bankContext);
+  const income = /واریز|افزایش موجودی|دریافت|بستانکار|انتقال\s+وجه\s+به/.test(text) || Boolean(signed?.sign === "+" && bankContext);
   if (expense && income) return { ignored: true, reason: "ambiguous_direction" } as const;
   if (!expense && !income) {
     return { ignored: true, reason: "not_financial" } as const;
@@ -112,21 +120,18 @@ export function parseMessage(raw: string, deviceTime?: string, providedBank?: st
     /مبلغ\s*[:：]?\s*([0-9][0-9,،]*)\s*(ریال|تومان)?/i,
     /([0-9][0-9,،]*)\s*(ریال|تومان)/i,
   ];
-  let amount: number | null = null;
-  let amountUnit: "ریال" | "تومان" = "ریال";
+  let amount = signed && bankContext ? numericAmount(signed.value) : null;
+  let amountUnit: "ریال" | "تومان" = signed && bankContext && signed.unit === "تومان" ? "تومان" : "ریال";
   // A balance is not the transaction amount, even when it is the only field with a unit.
   const amountText = text.replace(/(?:مانده|موجودی)(?:\s+(?:حساب|کارت))?\s*[:：]?\s*[0-9][0-9,،]*\s*(?:ریال|تومان)?/g, "");
   for (const pattern of amountPatterns) {
+    if (amount !== null) break;
     const match = amountText.match(pattern);
     amount = numericAmount(match?.[1]);
     if (amount !== null) {
       amountUnit = match?.[2] === "تومان" ? "تومان" : "ریال";
       break;
     }
-  }
-  if (amount === null && signed && bankContext) {
-    amount = numericAmount(signed[2]);
-    amountUnit = signed[3] === "تومان" ? "تومان" : "ریال";
   }
   if (amount === null) {
     return { ignored: true, reason: "amount_not_found" } as const;
@@ -137,7 +142,7 @@ export function parseMessage(raw: string, deviceTime?: string, providedBank?: st
 
   let category = "سایر";
   let description = expense ? "برداشت بانکی" : "واریز بانکی";
-  if (/انتقال\s*وجه|کارت به کارت/.test(text)) {
+  if (/انتقال\s*وجه|انتقال\s+از|کارت به کارت/.test(text)) {
     category = "انتقال وجه";
     description = "انتقال وجه";
   } else if (/خرید/.test(text)) {

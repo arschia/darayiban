@@ -40,3 +40,46 @@ for (const message of [
 test("received timestamp survives delayed upload", () => {
   assert.equal(parseMessage("برداشت: 100 ریال", received).transactionTime, "2026-09-05T12:34:56.000Z");
 });
+
+// Synthetic identifiers preserve the reported bank template without publishing customer data.
+const transfer = "حساب:123456789012345678\nمبلغ:1,234,000-\nانتقال از 1111222233334444 به 5555666677778888\nمانده:9,876,543\nزمان:1405/6/15-3:32";
+
+test("trailing debit sign on a labelled amount with an inline transfer", () => {
+  const result = parseMessage(transfer, received);
+  assert.equal(result.ignored, false);
+  assert.equal(result.type, "withdrawal");
+  assert.equal(result.amount, 1234000);
+  assert.equal(result.currency, "IRR");
+  assert.equal(result.balance, 9876543);
+  assert.equal(result.category, "انتقال وجه");
+  assert.equal(result.fromCard, "1111222233334444");
+  assert.equal(result.toCard, "5555666677778888");
+  assert.equal(result.transactionTime, "2026-09-06T00:02:00.000Z");
+});
+
+for (const [amountLine, type, amount] of [
+  ["مبلغ:1,234,000+", "deposit", 1234000],
+  ["مبلغ:-1,234,000", "withdrawal", 1234000],
+  ["مبلغ:+1,234,000", "deposit", 1234000],
+  ["مبلغ:۱٬۲۳۴٬۰۰۰−", "withdrawal", 1234000],
+  ["مبلغ:١٬٢٣٤٬٠٠٠+ تومان", "deposit", 12340000],
+  ["1,234,000-", "withdrawal", 1234000],
+]) test(`signed amount variant: ${amountLine}`, () => {
+  const result = parseMessage(transfer.replace("مبلغ:1,234,000-", amountLine).replaceAll("\n", "\r\n"), received);
+  assert.equal(result.ignored, false);
+  assert.equal(result.type, type);
+  assert.equal(result.amount, amount);
+});
+
+for (const message of [
+  transfer.replace("مبلغ:1,234,000-\n", ""),
+  transfer.replace("مبلغ:1,234,000-", "مبلغ:1,234,000"),
+  "حساب:123456789012345678-\nمانده:9,876,543",
+  "مانده:9,876,543-\nمبلغ:1,234,000",
+  "بانک\nمبلغ:1,234,000-\nواریز انجام شد",
+  "بانک\nمبلغ:1,234,000+\nبرداشت انجام شد",
+  "بانک\nمبلغ:1,234,000-\nمبلغ:2,000,000+",
+  "رمز پویا برای انتقال\nمبلغ:1,234,000-\nمانده:9,876,543",
+]) test(`ambiguous or non-transaction signs: ${message.slice(0, 45)}`, () => {
+  assert.equal(parseMessage(message, received).ignored, true);
+});
